@@ -22,6 +22,7 @@ class ActivityLogger
         'file.download',
         'template.download',
         'tenderListExcelDownload',
+        'secure.download',
     ];
 
     /**
@@ -32,6 +33,7 @@ class ActivityLogger
         'file-download',
         'cvfiledownload',
         'export',
+        'secure-download',
     ];
 
     /**
@@ -47,6 +49,15 @@ class ActivityLogger
     protected array $permissionUriPatterns = [
         'admin/users/edit-user',
         'admin/users/create-user',
+    ];
+
+    /**
+     * URI patterns for file approval/rejection (tender applications).
+     */
+    protected array $fileActionUriPatterns = [
+        'admin/tenders/approve-file',
+        'admin/tenders/cancelfile',
+        'admin/tenders/decision',
     ];
 
     /**

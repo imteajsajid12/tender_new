@@ -43,7 +43,8 @@ Route::get('login', [LoginController::class, 'showLoginForm'])->name('login');
 
 Route::match(['get', 'post'], '/', function () {
 	//echo('TEST!');
-	//	return view('error.404');
+		// return view('error.404');
+         return redirect('/admin');
 });
 Route::post('/check-status/check', [TendersController::class, 'check_status']);
 
@@ -137,6 +138,14 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 	//Route::get('/tenders/requests', 'TendersController@Allrequests');
 	Route::get('/tenders/requestsorted/{sort}/{tenderid?}', [TendersController::class, 'requestssorted']);
 	Route::get('/tenders/application/{applicationid}', [TendersController::class, 'viewapplication']);
+
+	// Secure file download with logging
+	Route::get('/secure-download/{path}', [TendersController::class, 'secureFileDownload'])
+		->where('path', '.*')
+		->name('secure.download');
+
+	// Log file access (AJAX endpoint for tracking file views)
+	Route::post('/log-file-access', [TendersController::class, 'logFileAccess'])->name('log.file.access');
 
 	Route::post('/tender-decision/{tender}/store', [TendersController::class, 'saveDecision'])->name('saveDecision');
 

@@ -1921,6 +1921,29 @@
                     console.log('✅ קובץ PDF נבחר בהצלחה: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)');
                 }
             });
+
+            // Track file downloads for security logging
+            $(document).on('click', 'a[href*="/upload/"]', function(e) {
+                var href = $(this).attr('href');
+                var fileName = href.split('/').pop();
+                var appId = '{{ $application->id ?? "unknown" }}';
+
+                // Send async log request (don't block the download)
+                $.ajax({
+                    url: '/admin/log-file-access',
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    data: {
+                        file: fileName,
+                        app_id: appId,
+                        action: 'view'
+                    },
+                    async: true
+                });
+                // Allow the default action (open file in new tab)
+            });
         });
     </script>
 @endsection

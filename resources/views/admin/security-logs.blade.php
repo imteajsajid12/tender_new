@@ -6,7 +6,7 @@
         <div class="container-fluid">
             <div class="row justify-content-between">
                 <div class="py-4 px-3">
-                    <h2 class="page-name">Security Activity Logs</h2>
+                    <h2 class="page-name">יומן פעילות אבטחה</h2>
                 </div>
             </div>
         </div>
@@ -26,18 +26,18 @@
 
                     <div class="card">
                         <div class="card-header">
-                            <h4>Available Log Files</h4>
+                            <h4>קבצי יומן זמינים</h4>
                         </div>
                         <div class="card-body">
                             @if(count($logs) > 0)
                                 <table class="table table-bordered table-striped">
                                     <thead>
                                         <tr>
-                                            <th>Date</th>
-                                            <th>Month</th>
-                                            <th>File Size</th>
-                                            <th>Last Modified</th>
-                                            <th>Actions</th>
+                                            <th>תאריך</th>
+                                            <th>חודש</th>
+                                            <th>גודל קובץ</th>
+                                            <th>עדכון אחרון</th>
+                                            <th>פעולות</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -50,11 +50,11 @@
                                                 <td>
                                                     <a href="{{ route('security-log.download', ['date' => $log['date']]) }}"
                                                        class="btn btn-sm btn-primary">
-                                                        Download
+                                                        הורדה
                                                     </a>
                                                     <a href="{{ route('security-log.show', ['date' => $log['date']]) }}"
                                                        class="btn btn-sm btn-secondary">
-                                                        View
+                                                        צפייה
                                                     </a>
                                                 </td>
                                             </tr>
@@ -62,7 +62,7 @@
                                     </tbody>
                                 </table>
                             @else
-                                <p class="text-muted">No security logs available yet.</p>
+                                <p class="text-muted">אין יומני אבטחה זמינים עדיין.</p>
                             @endif
                         </div>
                     </div>
@@ -71,5 +71,6 @@
         </div>
     </section>
 </main>
+
 
 @endsection

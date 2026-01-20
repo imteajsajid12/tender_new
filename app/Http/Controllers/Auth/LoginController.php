@@ -85,6 +85,14 @@ class LoginController extends Controller
     {
         // Check if 2FA is enabled and user should not bypass it
         if (config('twofactor.enabled', true) && !TwoFactorController::shouldBypass2FA($request, $user)) {
+            // Log successful credential verification (2FA pending)
+            security_log('INFO', 'LOGIN_ATTEMPT', [
+                'user' => "user_{$user->id}",
+                'ip' => $request->ip(),
+                'success' => 'true',
+                'status' => '2FA_PENDING',
+            ]);
+
             // Logout the user without invalidating the session
             $this->guard()->logout();
 
@@ -121,10 +129,53 @@ class LoginController extends Controller
         session([config('twofactor.session.verified_key') => true]);
         session([config('twofactor.session.timestamp_key') => Carbon::now()->timestamp]);
 
+        // Log successful login (2FA bypassed)
+        security_log('INFO', 'LOGIN_SUCCESS', [
+            'user' => "user_{$user->id}",
+            'ip' => $request->ip(),
+            'success' => 'true',
+            'method' => '2FA_BYPASSED',
+        ]);
+
         Log::info("User {$user->id} logged in (2FA bypassed)");
 
         // Return null to continue with default redirect
         return null;
+    }
+
+    /**
+     * Get the failed login response instance.
+     *
+     * @param Request $request
+     * @return \Symfony\Component\HttpFoundation\Response
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    protected function sendFailedLoginResponse(Request $request)
+    {
+        // Log failed login attempt
+        security_log('WARN', 'LOGIN_ATTEMPT', [
+            'user' => $this->sanitizeEmail($request->input($this->username(), 'unknown')),
+            'ip' => $request->ip(),
+            'success' => 'false',
+            'reason' => 'INVALID_CREDENTIALS',
+        ]);
+
+        throw \Illuminate\Validation\ValidationException::withMessages([
+            $this->username() => [trans('auth.failed')],
+        ]);
+    }
+
+    /**
+     * Sanitize email for logging.
+     *
+     * @param string $email
+     * @return string
+     */
+    protected function sanitizeEmail(string $email): string
+    {
+        $sanitized = preg_replace('/[^a-zA-Z0-9@._-]/', '', $email);
+        return substr($sanitized, 0, 50) ?: 'unknown';
     }
 
     /**
@@ -135,6 +186,16 @@ class LoginController extends Controller
      */
     public function logout(Request $request)
     {
+        // Get user info before logout for logging
+        $user = Auth::user();
+        $userId = $user ? $user->id : 'unknown';
+
+        // Log logout action
+        security_log('INFO', 'LOGOUT', [
+            'user' => "user_{$userId}",
+            'ip' => $request->ip(),
+        ]);
+
         // Clear 2FA session data
         session()->forget([
             config('twofactor.session.user_id_key'),

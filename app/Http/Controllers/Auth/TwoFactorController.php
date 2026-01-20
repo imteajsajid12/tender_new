@@ -132,6 +132,14 @@ class TwoFactorController extends Controller
         if (!$result['success']) {
             Log::warning("Failed 2FA verification attempt for user: {$userId}");
 
+            // Log failed 2FA attempt
+            security_log('WARN', '2FA_VERIFY', [
+                'user' => "user_{$userId}",
+                'ip' => $request->ip(),
+                'success' => 'false',
+                'reason' => 'INVALID_OTP',
+            ]);
+
             return $this->failedResponse($request, $result['message']);
         }
 
@@ -144,6 +152,14 @@ class TwoFactorController extends Controller
 
         // Login the user
         Auth::loginUsingId($userId, $request->filled('remember'));
+
+        // Log successful login after 2FA
+        security_log('INFO', 'LOGIN_SUCCESS', [
+            'user' => "user_{$userId}",
+            'ip' => $request->ip(),
+            'success' => 'true',
+            'method' => '2FA_VERIFIED',
+        ]);
 
         Log::info("User {$userId} completed 2FA verification successfully");
 
@@ -221,6 +237,16 @@ class TwoFactorController extends Controller
      */
     public function cancel(Request $request): RedirectResponse
     {
+        $userId = session(config('twofactor.session.user_id_key'));
+
+        // Log 2FA cancellation
+        if ($userId) {
+            security_log('INFO', '2FA_CANCELLED', [
+                'user' => "user_{$userId}",
+                'ip' => $request->ip(),
+            ]);
+        }
+
         $this->clearTwoFactorSession($request);
 
         return redirect()->route('login')

@@ -2281,6 +2281,17 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                         ['app_id' => $data["p5_id"], 'url' => $fail_name . ".pdf", 'type' => 'pdf', 'file_name' => 'decision' . $view . '.pdf', 'status' => 1],
                     );
                     DB::table('apps_logs')->insert([['app_id' => $request->decisionId, 'description' => $data["logText"]]]);
+
+                    // Security log for application decision
+                    $authUser = auth()->user();
+                    $decisionType = str_contains($view, 'approve') ? 'APPROVED' : 'REJECTED';
+                    security_log('INFO', 'APP_DECISION', [
+                        'user' => 'user_' . ($authUser->id ?? 'unknown'),
+                        'ip' => $request->ip(),
+                        'app_id' => $request->decisionId,
+                        'decision' => $decisionType,
+                        'stage' => $view
+                    ]);
                 } else {
                     Log::debug('file: mo');
                 }
@@ -2960,6 +2971,17 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         $file = DB::table('apps_file')->where('id', '=', $fileID)->first();
         if (empty($file))
             return 'error' . $fileID;
+
+        // Security log for file rejection
+        security_log('INFO', 'FILE_REJECTED', [
+            'user' => 'user_' . ($user->id ?? 'unknown'),
+            'ip' => request()->ip(),
+            'app_id' => $appid,
+            'file_id' => $fileID,
+            'file' => $file->url ?? 'unknown',
+            'reason' => substr($msg, 0, 100) // Truncate reason to 100 chars
+        ]);
+
         $app = DB::table('applications')->where('id', '=', $file->app_id)->first();
 
 
@@ -3329,6 +3351,16 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
 
                     //select count(*) as cc from apps_file where status=2 and app_id in (365,355,367)
                 }
+
+                // Security log for file approval
+                $authUser = auth()->user();
+                security_log('INFO', 'FILE_APPROVED', [
+                    'user' => 'user_' . ($authUser->id ?? 'unknown'),
+                    'ip' => $request->ip(),
+                    'app_id' => $request->appid,
+                    'file_id' => $file->id,
+                    'file' => $file->url ?? 'unknown'
+                ]);
             }
             //	if($file->type != 'erur'){
             //		self::app_status_edit_ajaxfile($request->appid);
@@ -3351,6 +3383,88 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
     }
 
 
+
+    /**
+     * Log file access via AJAX (for tracking file views/downloads).
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function logFileAccess(Request $request)
+    {
+        $authUser = auth()->user();
+        $fileName = $request->input('file', 'unknown');
+        $appId = $request->input('app_id', 'unknown');
+        $action = $request->input('action', 'view');
+
+        security_log('INFO', 'DOWNLOAD_FILE', [
+            'user' => 'user_' . ($authUser->id ?? 'guest'),
+            'ip' => $request->ip(),
+            'file' => $fileName,
+            'app_id' => $appId,
+            'action' => $action
+        ]);
+
+        return response()->json(['status' => 'logged']);
+    }
+
+    /**
+     * Secure file download with logging.
+     * Serves files from upload directory and logs the download.
+     *
+     * @param Request $request
+     * @param string $path The file path (can be encoded or plain)
+     * @return \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\Response
+     */
+    public function secureFileDownload(Request $request, $path)
+    {
+        // Decode path if it's base64 encoded
+        $decodedPath = base64_decode($path, true);
+        $filePath = $decodedPath !== false ? $decodedPath : $path;
+
+        // Security: Prevent directory traversal
+        $filePath = str_replace(['../', '..\\', '..'], '', $filePath);
+
+        // Determine full path (check both upload and upload/admin directories)
+        $fullPath = null;
+        if (file_exists(public_path('upload/' . $filePath))) {
+            $fullPath = public_path('upload/' . $filePath);
+        } elseif (file_exists(public_path('upload/admin/' . $filePath))) {
+            $fullPath = public_path('upload/admin/' . $filePath);
+        } elseif (file_exists(public_path($filePath))) {
+            $fullPath = public_path($filePath);
+        }
+
+        if (!$fullPath || !file_exists($fullPath)) {
+            abort(404, 'File not found');
+        }
+
+        // Get file info
+        $fileName = basename($fullPath);
+        $authUser = auth()->user();
+
+        // Security log for file download
+        security_log('INFO', 'DOWNLOAD_FILE', [
+            'user' => 'user_' . ($authUser->id ?? 'guest'),
+            'ip' => $request->ip(),
+            'file' => $fileName,
+            'path' => $filePath
+        ]);
+
+        // Return file for download or inline view
+        $mimeType = mime_content_type($fullPath);
+        $isPdf = str_ends_with(strtolower($fileName), '.pdf');
+
+        if ($isPdf || $request->has('inline')) {
+            return response()->file($fullPath, [
+                'Content-Type' => $mimeType,
+            ]);
+        }
+
+        return response()->download($fullPath, $fileName, [
+            'Content-Type' => $mimeType,
+        ]);
+    }
 
     public function uploadFile(Request $request, $tenderId = null)
     {
