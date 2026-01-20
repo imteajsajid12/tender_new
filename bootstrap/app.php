@@ -16,6 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'twofactor.verified' => \App\Http\Middleware\TwoFactorVerified::class,
             'twofactor.pending' => \App\Http\Middleware\RequiresTwoFactor::class,
         ]);
+
+        // Append ActivityLogger to the web middleware group for security logging
+        $middleware->appendToGroup('web', \App\Http\Middleware\ActivityLogger::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

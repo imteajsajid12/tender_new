@@ -127,6 +127,11 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        'security' => [
+            'driver' => 'custom',
+            'via' => \App\Logging\SecurityLogger::class,
+        ],
+
     ],
 
 ];

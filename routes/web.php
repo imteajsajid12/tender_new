@@ -12,6 +12,7 @@ use App\Http\Controllers\AppChartController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\ReplacefileController;
+use App\Http\Controllers\SecurityLogController;
 use App\Http\Middleware\CheckPermissions;
 
 use Illuminate\Support\Facades\Mail;
@@ -194,6 +195,13 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 
 		Route::get('{template}', [TemplateController::class, 'edit'])->name('edit');
 		Route::post('{template}/update', [TemplateController::class, 'update'])->name('update');
+	});
+
+	// Security Log Routes
+	Route::prefix('security-log')->name('security-log.')->group(function () {
+		Route::get('/', [SecurityLogController::class, 'index'])->name('index');
+		Route::get('/download', [SecurityLogController::class, 'download'])->name('download');
+		Route::get('/view/{date}', [SecurityLogController::class, 'show'])->name('show');
 	});
 });
 
