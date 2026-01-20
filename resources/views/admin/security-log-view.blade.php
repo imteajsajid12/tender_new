@@ -2,92 +2,141 @@
 @section('content')
 
 <style>
+    .security-log-container {
+        padding: 20px;
+        margin: 15px;
+    }
+
+    .log-card {
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .log-card .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        padding: 15px 20px;
+    }
+
+    .log-card .card-body {
+        padding: 20px;
+    }
+
     .log-entry {
-        font-family: monospace;
-        font-size: 12px;
-        padding: 8px 12px;
-        margin-bottom: 4px;
-        border-radius: 4px;
+        /* font-family: 'Courier New', monospace; */
+        font-size: 11px;
+        padding: 6px 10px;
+        margin-bottom: 3px;
+        border-radius: 3px;
         white-space: pre-wrap;
         word-break: break-word;
+        line-height: 1.4;
+        color: #000000;
+        font-weight: 40px;
     }
 
-    /* Success - Green */
+    /* Success - Green (login success with success=true) */
     .log-success {
         background-color: #d4edda;
-        border-right: 4px solid #28a745;
-        color: #155724;
+        border-right: 3px solid #28a745;
     }
 
-    /* Warning - Orange */
+    /* Warning - Orange (WARN level) */
     .log-warn {
         background-color: #fff3cd;
-        border-right: 4px solid #ffc107;
-        color: #856404;
+        border-right: 3px solid #fd7e14;
     }
 
-    /* Error/Failed - Red */
+    /* Error/Failed - Red (success=false or ERROR level) */
     .log-error {
         background-color: #f8d7da;
-        border-right: 4px solid #dc3545;
-        color: #721c24;
+        border-right: 3px solid #dc3545;
     }
 
-    /* Info - Yellow/Light */
+    /* Info - Yellow/Light (INFO level - general actions) */
     .log-info {
         background-color: #fff9e6;
-        border-right: 4px solid #ffc107;
-        color: #664d03;
+        border-right: 3px solid #ffc107;
     }
 
     /* Default */
     .log-default {
         background-color: #f8f9fa;
-        border-right: 4px solid #6c757d;
-        color: #495057;
+        border-right: 3px solid #6c757d;
     }
 
     .log-number {
         display: inline-block;
-        min-width: 40px;
+        min-width: 30px;
         color: #6c757d;
         font-weight: bold;
-        margin-left: 10px;
+        margin-left: 8px;
+        font-size: 10px;
     }
 
     .log-legend {
         display: flex;
-        gap: 20px;
-        margin-bottom: 20px;
+        gap: 15px;
+        margin-bottom: 15px;
+        padding: 10px 15px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
         flex-wrap: wrap;
     }
 
     .legend-item {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        font-size: 12px;
     }
 
     .legend-color {
-        width: 20px;
-        height: 20px;
-        border-radius: 4px;
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
     }
 
     .legend-success { background-color: #28a745; }
-    .legend-warn { background-color: #ffc107; }
+    .legend-warn { background-color: #fd7e14; }
     .legend-error { background-color: #dc3545; }
-    .legend-info { background-color: #ffd700; }
+    .legend-info { background-color: #ffc107; }
+
+    .log-entries {
+        max-height: 600px;
+        overflow-y: auto;
+        padding: 10px;
+        background-color: #fafafa;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+    }
+
+    .log-header-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .log-header-actions .btn {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    .log-stats {
+        font-size: 13px;
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
 </style>
 
 <main id="main" class="main" style="overflow-x: hidden; min-width: 1200px;">
     <section class="section-topbar">
         <div class="container-fluid">
-            <div class="row justify-content-between">
-                <div class="py-4 px-3">
-                    <h2 class="page-name">יומן אבטחה - {{ $date }}</h2>
+            <div class="row justify-content-between align-items-center">
+                <div class="py-3 px-3">
+                    <h2 class="page-name" style="margin: 0;">יומן אבטחה - {{ $date }}</h2>
                 </div>
-                <div class="py-4 px-3">
+                <div class="py-3 px-3 log-header-actions">
                     <a href="{{ route('security-log.index') }}" class="btn btn-secondary">
                         חזרה לרשימה
                     </a>
@@ -100,77 +149,66 @@
     </section>
 
     <section class="section-content">
-        <div class="container-fluid h-100">
-            <div class="row h-100">
-                <div class="col-12 px-0">
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h4>רשומות יומן ({{ count($entries) }} סה"כ)</h4>
+        <div class="security-log-container">
+            <div class="card log-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 style="margin: 0;">רשומות יומן</h5>
+                    <span class="log-stats">{{ count($entries) }} רשומות סה"כ</span>
+                </div>
+                <div class="card-body">
+                    <!-- Legend -->
+                    <div class="log-legend">
+                        <div class="legend-item">
+                            <div class="legend-color legend-success"></div>
+                            <span>הצלחה (success=true)</span>
                         </div>
-                        <div class="card-body">
-                            <!-- Legend -->
-                            <div class="log-legend">
-                                <div class="legend-item">
-                                    <div class="legend-color legend-success"></div>
-                                    <span>הצלחה</span>
-                                </div>
-                                <div class="legend-item">
-                                    <div class="legend-color legend-warn"></div>
-                                    <span>אזהרה</span>
-                                </div>
-                                <div class="legend-item">
-                                    <div class="legend-color legend-error"></div>
-                                    <span>כישלון</span>
-                                </div>
-                                <div class="legend-item">
-                                    <div class="legend-color legend-info"></div>
-                                    <span>מידע</span>
-                                </div>
-                            </div>
-
-                            @if(count($entries) > 0)
-                                <div class="log-entries">
-                                    @foreach($entries as $index => $entry)
-                                        @php
-                                            // Determine log type based on content
-                                            $logClass = 'log-default';
-
-                                            // Check for success=true or LOGIN_SUCCESS
-                                            if (str_contains($entry, 'success=true') || str_contains($entry, 'LOGIN_SUCCESS')) {
-                                                $logClass = 'log-success';
-                                            }
-                                            // Check for WARN level or success=false
-                                            elseif (str_contains($entry, '| WARN') || str_contains($entry, 'success=false')) {
-                                                if (str_contains($entry, 'success=false')) {
-                                                    $logClass = 'log-error';
-                                                } else {
-                                                    $logClass = 'log-warn';
-                                                }
-                                            }
-                                            // Check for ERROR level
-                                            elseif (str_contains($entry, '| ERROR')) {
-                                                $logClass = 'log-error';
-                                            }
-                                            // Check for INFO level
-                                            elseif (str_contains($entry, '| INFO')) {
-                                                // INFO with success indicators
-                                                if (str_contains($entry, 'SUCCESS') || str_contains($entry, 'DOWNLOAD') || str_contains($entry, 'APPROVE')) {
-                                                    $logClass = 'log-success';
-                                                } else {
-                                                    $logClass = 'log-info';
-                                                }
-                                            }
-                                        @endphp
-                                        <div class="log-entry {{ $logClass }}">
-                                            <span class="log-number">{{ $index + 1 }}.</span>{{ $entry }}
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @else
-                                <p class="text-muted">אין רשומות יומן לתאריך זה.</p>
-                            @endif
+                        <div class="legend-item">
+                            <div class="legend-color legend-warn"></div>
+                            <span>אזהרה (WARN)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color legend-error"></div>
+                            <span>כישלון (success=false)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color legend-info"></div>
+                            <span>מידע (INFO)</span>
                         </div>
                     </div>
+
+                    @if(count($entries) > 0)
+                        <div class="log-entries">
+                            @foreach($entries as $index => $entry)
+                                @php
+                                    // Simple and consistent color logic
+                                    $logClass = 'log-default';
+
+                                    // Priority 1: Check for explicit success/failure status
+                                    if (str_contains($entry, 'success=true')) {
+                                        $logClass = 'log-success';
+                                    }
+                                    elseif (str_contains($entry, 'success=false')) {
+                                        $logClass = 'log-error';
+                                    }
+                                    // Priority 2: Check for log level
+                                    elseif (str_contains($entry, '| ERROR')) {
+                                        $logClass = 'log-error';
+                                    }
+                                    elseif (str_contains($entry, '| WARN')) {
+                                        $logClass = 'log-warn';
+                                    }
+                                    elseif (str_contains($entry, '| INFO')) {
+                                        $logClass = 'log-info';
+                                    }
+                                @endphp
+                                <div class="log-entry {{ $logClass }}">
+                                    <span class="log-number">{{ $index + 1 }}.</span>{{ $entry }}
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-muted" style="text-align: center; padding: 20px;">אין רשומות יומן לתאריך זה.</p>
+                    @endif
                 </div>
             </div>
         </div>

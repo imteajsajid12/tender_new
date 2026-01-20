@@ -1,76 +1,168 @@
 @extends('layouts.admin.header')
 @section('content')
 
+<style>
+    .security-log-container {
+        padding: 20px;
+        margin: 15px;
+    }
+
+    .log-card {
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+
+    .log-card .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        padding: 15px 20px;
+    }
+
+    .log-card .card-body {
+        padding: 20px;
+    }
+
+    .log-table {
+        font-size: 13px;
+        margin-bottom: 0;
+    }
+
+    .log-table thead th {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+        padding: 10px 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .log-table tbody td {
+        padding: 10px 12px;
+        vertical-align: middle;
+    }
+
+    .log-table tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+
+    .btn-action {
+        padding: 4px 10px;
+        font-size: 12px;
+        margin-left: 5px;
+    }
+
+    .file-size {
+        color: #6c757d;
+        font-size: 12px;
+    }
+
+    .file-date {
+        font-weight: 500;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #6c757d;
+    }
+
+    .empty-state i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        color: #dee2e6;
+    }
+
+    .page-header {
+        margin-bottom: 0;
+    }
+
+    .log-stats-badge {
+        background-color: #e9ecef;
+        color: #495057;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin-right: 10px;
+    }
+</style>
+
 <main id="main" class="main" style="overflow-x: hidden; min-width: 1200px;">
     <section class="section-topbar">
         <div class="container-fluid">
-            <div class="row justify-content-between">
-                <div class="py-4 px-3">
-                    <h2 class="page-name">יומן פעילות אבטחה</h2>
+            <div class="row justify-content-between align-items-center">
+                <div class="py-3 px-3">
+                    <h2 class="page-name page-header">יומן פעילות אבטחה</h2>
                 </div>
+                @if(count($logs) > 0)
+                <div class="py-3 px-3">
+                    <span class="log-stats-badge">{{ count($logs) }} קבצים זמינים</span>
+                </div>
+                @endif
             </div>
         </div>
     </section>
 
     <section class="section-content">
-        <div class="container-fluid h-100">
-            <div class="row h-100">
-                <div class="col-12 px-0">
-                    @if(session('error'))
-                        <div class="alert alert-danger">{{ session('error') }}</div>
-                    @endif
+        <div class="security-log-container">
+            @if(session('error'))
+                <div class="alert alert-danger" style="margin-bottom: 15px;">{{ session('error') }}</div>
+            @endif
 
-                    @if(session('success'))
-                        <div class="alert alert-success">{{ session('success') }}</div>
-                    @endif
+            @if(session('success'))
+                <div class="alert alert-success" style="margin-bottom: 15px;">{{ session('success') }}</div>
+            @endif
 
-                    <div class="card">
-                        <div class="card-header">
-                            <h4>קבצי יומן זמינים</h4>
-                        </div>
-                        <div class="card-body">
-                            @if(count($logs) > 0)
-                                <table class="table table-bordered table-striped">
-                                    <thead>
+            <div class="card log-card">
+                <div class="card-header">
+                    <h5 style="margin: 0;">קבצי יומן זמינים</h5>
+                </div>
+                <div class="card-body">
+                    @if(count($logs) > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered log-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 5%;">#</th>
+                                        <th style="width: 20%;">תאריך</th>
+                                        <th style="width: 15%;">חודש</th>
+                                        <th style="width: 15%;">גודל קובץ</th>
+                                        <th style="width: 25%;">עדכון אחרון</th>
+                                        <th style="width: 20%;">פעולות</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($logs as $index => $log)
                                         <tr>
-                                            <th>תאריך</th>
-                                            <th>חודש</th>
-                                            <th>גודל קובץ</th>
-                                            <th>עדכון אחרון</th>
-                                            <th>פעולות</th>
+                                            <td>{{ $index + 1 }}</td>
+                                            <td class="file-date">{{ $log['date'] }}</td>
+                                            <td>{{ $log['month'] }}</td>
+                                            <td class="file-size">{{ number_format($log['size'] / 1024, 2) }} KB</td>
+                                            <td>{{ $log['modified'] }}</td>
+                                            <td>
+                                                <a href="{{ route('security-log.show', ['date' => $log['date']]) }}"
+                                                   class="btn btn-sm btn-outline-primary btn-action">
+                                                    צפייה
+                                                </a>
+                                                <a href="{{ route('security-log.download', ['date' => $log['date']]) }}"
+                                                   class="btn btn-sm btn-outline-secondary btn-action">
+                                                    הורדה
+                                                </a>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($logs as $log)
-                                            <tr>
-                                                <td>{{ $log['date'] }}</td>
-                                                <td>{{ $log['month'] }}</td>
-                                                <td>{{ number_format($log['size'] / 1024, 2) }} KB</td>
-                                                <td>{{ $log['modified'] }}</td>
-                                                <td>
-                                                    <a href="{{ route('security-log.download', ['date' => $log['date']]) }}"
-                                                       class="btn btn-sm btn-primary">
-                                                        הורדה
-                                                    </a>
-                                                    <a href="{{ route('security-log.show', ['date' => $log['date']]) }}"
-                                                       class="btn btn-sm btn-secondary">
-                                                        צפייה
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            @else
-                                <p class="text-muted">אין יומני אבטחה זמינים עדיין.</p>
-                            @endif
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
+                    @else
+                        <div class="empty-state">
+                            <div style="font-size: 48px; color: #dee2e6; margin-bottom: 15px;">📋</div>
+                            <p>אין יומני אבטחה זמינים עדיין.</p>
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
     </section>
 </main>
-
 
 @endsection
