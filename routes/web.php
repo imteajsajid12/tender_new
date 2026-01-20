@@ -49,6 +49,30 @@ Route::post('/check-status/check', [TendersController::class, 'check_status']);
 Route::post('login', [LoginController::class, 'login']);
 Route::post('logout', [LoginController::class, 'logout'])->name('logout');
 Route::get('logout', [LoginController::class, 'logout'])->name('logout');
+
+/*
+|--------------------------------------------------------------------------
+| Two-Factor Authentication Routes
+|--------------------------------------------------------------------------
+|
+| These routes handle the 2FA OTP verification flow.
+| After successful login, users are redirected to verify OTP.
+|
+*/
+Route::prefix('2fa')->name('2fa.')->group(function () {
+    Route::get('/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'showVerifyForm'])
+        ->name('verify');
+
+    Route::post('/verify', [\App\Http\Controllers\Auth\TwoFactorController::class, 'verify'])
+        ->name('verify.submit');
+
+    Route::post('/resend', [\App\Http\Controllers\Auth\TwoFactorController::class, 'resend'])
+        ->name('resend');
+
+    Route::get('/cancel', [\App\Http\Controllers\Auth\TwoFactorController::class, 'cancel'])
+        ->name('cancel');
+});
+
 Route::get('/replacefile/{file}', [ReplacefileController::class, 'index']);
 
 //Route::get('/replacefile/{file}/', array('middleware' => 'cors', 'uses' => 'ReplacefileController@index'));

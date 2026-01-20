@@ -8,6 +8,25 @@
                 <div style="text-align: center"><img src="{{ asset('img/logo.png') }}"></div>
                 <div class="sky-login-container row">
                     <div class="card-body col-md-6">
+                        {{-- Display Success/Error Messages --}}
+                        @if(session('success'))
+                            <div class="alert alert-success alert-dismissible fade show sky-rtl" role="alert">
+                                {{ session('success') }}
+                            </div>
+                        @endif
+
+                        @if(session('error'))
+                            <div class="alert alert-danger alert-dismissible fade show sky-rtl" role="alert">
+                                {{ session('error') }}
+                            </div>
+                        @endif
+
+                        @if(session('info'))
+                            <div class="alert alert-info alert-dismissible fade show sky-rtl" role="alert">
+                                {{ session('info') }}
+                            </div>
+                        @endif
+
                         <form method="POST" action="{{ route('login') }}">
                             @csrf
 
