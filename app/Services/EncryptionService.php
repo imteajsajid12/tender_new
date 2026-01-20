@@ -9,16 +9,16 @@ use Illuminate\Support\Facades\Log;
 class EncryptionService
 {
     /**
-     * The current encryption key slot identifier.
+     * The current encryption key slot - stores the full APP_KEY.
      * This is stored with encrypted data to track which APP_KEY was used.
      */
     protected string $currentKeySlot;
 
     public function __construct()
     {
-        // Use a hash of the APP_KEY as the slot identifier
-        // This allows tracking which key was used for encryption
-        $this->currentKeySlot = substr(hash('sha256', config('app.key')), 0, 8);
+        // Store the full APP_KEY in the key slot
+        // This allows tracking exactly which key was used for encryption
+        $this->currentKeySlot = config('app.key');
     }
 
     /**

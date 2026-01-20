@@ -30,9 +30,10 @@ This document describes the encryption system implemented for protecting sensiti
 - Encrypted data is stored as base64-encoded JSON containing: `iv`, `value`, `mac`
 
 ### Key Slot Tracking
-- The `encryption_key_slot` column stores the first 8 characters of the SHA-256 hash of the APP_KEY
-- This allows tracking which key version was used to encrypt the data
-- Useful for key rotation scenarios
+- The `encryption_key_slot` column stores the **FULL APP_KEY** (e.g., `base64:0d5rHySL+4qGT7UQfUTmQECLid5ZYErZ0t3JpyRONus=`)
+- This allows tracking exactly which key was used to encrypt the data
+- Column size: VARCHAR(100) to accommodate the full key
+- Useful for key rotation scenarios and data recovery
 
 ---
 
@@ -129,7 +130,7 @@ php artisan users:encrypt --dry-run
 - Drops unique index on `email` column (TEXT columns cannot have unique index)
 - Changes `name` column from VARCHAR(191) to TEXT
 - Changes `email` column from VARCHAR(191) to TEXT
-- Adds `encryption_key_slot` column (VARCHAR(10), nullable)
+- Adds `encryption_key_slot` column (VARCHAR(100), nullable) - stores full APP_KEY
 
 ---
 
@@ -289,15 +290,15 @@ public function boot()
 | created_at | TIMESTAMP | Created timestamp |
 | updated_at | TIMESTAMP | Updated timestamp |
 | status | VARCHAR(10) | User status |
-| **encryption_key_slot** | VARCHAR(10) | APP_KEY identifier (NEW) |
+| **encryption_key_slot** | VARCHAR(100) | Full APP_KEY stored here (NEW) |
 
 ### Example Encrypted Data
 
 **In Database:**
 ```
-name: eyJpdiI6IlVtdU5SZnYwU0VQQ0pNeE9abVRyTlE9PSIsInZhbHVlIjoiemtiUlZGdFgyVDQ0bEpJRmsy...
-email: eyJpdiI6ImdUc3M4K0FBMGpWWnNUdXFqTW1FMUE9PSIsInZhbHVlIjoiNkFNdW13d2M2U0l2ZFl4L0NM...
-encryption_key_slot: a1b2c3d4
+name: eyJpdiI6IjMrbU9YTnRFdFV5NkdlL0FldG5SM3c9PSIsInZhbHVlIjoiemtiUlZGdFgyVDQ0bEpJRmsy...
+email: eyJpdiI6IjJPbWFNR3lSRjZ3TkFuOGpGMmNrM3c9PSIsInZhbHVlIjoiNkFNdW13d2M2U0l2ZFl4L0NM...
+encryption_key_slot: base64:0d5rHySL+4qGT7UQfUTmQECLid5ZYErZ0t3JpyRONus=
 ```
 
 **After Decryption (in application):**
@@ -529,7 +530,8 @@ echo $user->name; // Should show decrypted name
 | `app/Traits/Encryptable.php` | NEW | Model trait for auto encryption |
 | `app/Auth/EncryptedUserProvider.php` | NEW | Custom auth provider |
 | `app/Console/Commands/EncryptExistingUsers.php` | NEW | Artisan command |
-| `database/migrations/2025_01_20_100000_...` | NEW | Database migration |
+| `database/migrations/2025_01_20_100000_...` | NEW | Initial database migration |
+| `database/migrations/2025_01_20_100001_...` | NEW | Increase key_slot column size |
 | `app/User.php` | MODIFIED | Added encryption trait |
 | `app/Models/User.php` | MODIFIED | Added encryption trait |
 | `app/Http/Controllers/UsersController.php` | MODIFIED | Manual encryption |
@@ -543,6 +545,7 @@ echo $user->name; // Should show decrypted name
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | 2025-01-20 | Initial encryption implementation |
+| 1.1.0 | 2025-01-20 | Store full APP_KEY instead of hash in encryption_key_slot |
 
 ---
 
