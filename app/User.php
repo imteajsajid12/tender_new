@@ -3,6 +3,8 @@
 namespace App;
 
 use App\Models\Tender;
+use App\Traits\Encryptable;
+use App\Services\EncryptionService;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -12,7 +14,16 @@ use Illuminate\Support\Facades\Auth;
 //use Auth;
 class User extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, Encryptable;
+
+    /**
+     * The attributes that should be encrypted.
+     *
+     * @var array
+     */
+    protected $encryptable = [
+        'name', 'email'
+    ];
 
     /**
      * The attributes that are mass assignable.
@@ -20,7 +31,7 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'role', 'status'
+        'name', 'email', 'password', 'role', 'status', 'encryption_key_slot'
     ];
 
     /**
@@ -42,12 +53,18 @@ class User extends Authenticatable
     ];
 
     public static function get_all_users() {
+        $encryptionService = app(EncryptionService::class);
+
         $Users = DB::table('users')
                 ->where([
                     ['id', '!=', 1]
                 ])
                 ->orderBy('id', 'DESC')->paginate(15);
         foreach ($Users as $key => $User) {
+            // Decrypt name and email
+            $User->name = $encryptionService->decrypt($User->name);
+            $User->email = $encryptionService->decrypt($User->email);
+
             $user_meta = DB::table('users_meta')
                 ->where('user_id', '=', $User->id)
                 ->get();
@@ -63,17 +80,26 @@ class User extends Authenticatable
 
 
     public static function get_user($id) {
+        $encryptionService = app(EncryptionService::class);
+
         $User = DB::table('users')
                 ->where('id', '=', $id)
                 ->first();
-        $user_meta = DB::table('users_meta')
-                ->where('user_id', '=', $User->id)
-                ->get();
-        $data = array();
-        foreach ($user_meta as $key => $value) {
-            $data[$value->meta_name]  = $value->meta_value;
+
+        if ($User) {
+            // Decrypt name and email
+            $User->name = $encryptionService->decrypt($User->name);
+            $User->email = $encryptionService->decrypt($User->email);
+
+            $user_meta = DB::table('users_meta')
+                    ->where('user_id', '=', $User->id)
+                    ->get();
+            $data = array();
+            foreach ($user_meta as $key => $value) {
+                $data[$value->meta_name]  = $value->meta_value;
+            }
+            $User->meta = $data;
         }
-        $User->meta = $data;
 
         return $User;
     }

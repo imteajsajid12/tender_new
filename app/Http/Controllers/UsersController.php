@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\User;
+use App\Services\EncryptionService;
 //use Auth;
 //use Validator;
 use Illuminate\Support\Str;
@@ -15,15 +16,17 @@ use Illuminate\Support\Facades\Validator;
 class UsersController extends Controller
 {
     private $user;
+    private EncryptionService $encryptionService;
     public $userdata = array(
         'department'=>array(
             'education' => 'חינוך'
         )
     );
-    public function __construct(User $user)
+    public function __construct(User $user, EncryptionService $encryptionService)
     {
         $this->middleware('auth');
         $this->user = $user;
+        $this->encryptionService = $encryptionService;
     }
 
     public function index()
@@ -50,8 +53,22 @@ class UsersController extends Controller
         }else{
             $password = $request->user_type == "1" ? Hash::make($request->password) : Hash::make(Str::random(8));
             $permissions = isset($request->permissions) ? implode(',', $request->permissions) : "";
+
+            // Encrypt name and email before storing
+            $encryptedName = $this->encryptionService->encrypt($name);
+            $encryptedEmail = $this->encryptionService->encrypt($request->email);
+
             $id = User::insertGetId(
-                    ['name' => $name, 'email' =>$request->email, 'role' => $permissions, 'password'=> $password, 'created_at' => date('Y-m-d h:i:j'), 'updated_at' => date('Y-m-d h:i:j'), 'status' => $request->user_type]
+                    [
+                        'name' => $encryptedName,
+                        'email' => $encryptedEmail,
+                        'role' => $permissions,
+                        'password'=> $password,
+                        'created_at' => date('Y-m-d h:i:j'),
+                        'updated_at' => date('Y-m-d h:i:j'),
+                        'status' => $request->user_type,
+                        'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+                    ]
                 );
             if($id){
                 DB::table('users_meta')->insert([
@@ -132,7 +149,12 @@ class UsersController extends Controller
                 $errors = $validator->errors()->all();
             }else{
                 $name = $request->name.' '.$request->fname;
-                DB::table('users')->where('id', $id)->update(['name' => $name]);
+                // Encrypt name before storing
+                $encryptedName = $this->encryptionService->encrypt($name);
+                DB::table('users')->where('id', $id)->update([
+                    'name' => $encryptedName,
+                    'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+                ]);
                 DB::table('users_meta')
                 ->where([
                     ['user_id', '=', $id],
@@ -153,7 +175,14 @@ class UsersController extends Controller
                 $errors = $validator->errors()->all();
             }else{
                 $password = Hash::make($request->password);
-                DB::table('users')->where('id', $id)->update(['password' => $password, 'email'=>$request->email,'status' => 1]);
+                // Encrypt email before storing
+                $encryptedEmail = $this->encryptionService->encrypt($request->email);
+                DB::table('users')->where('id', $id)->update([
+                    'password' => $password,
+                    'email' => $encryptedEmail,
+                    'status' => 1,
+                    'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+                ]);
             }
         }elseif($form_type == 3){
             $permissions = isset($request->permissions) ? implode(',', $request->permissions) : "";

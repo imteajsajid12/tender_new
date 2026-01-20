@@ -61,7 +61,7 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            'driver' => 'encrypted',  // Custom provider for encrypted email authentication
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
 
