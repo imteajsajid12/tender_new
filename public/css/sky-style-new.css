@@ -1,0 +1,285 @@
+.doc-filename {
+    top: 45px;
+    width: 100%;
+    padding: 0 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    height: 32px;
+}
+.replace{
+    color: red;
+    top: 80px;
+}
+
+.faind_line {
+    margin-bottom: 15px;
+}
+.faind_line .input-control:first-child {
+    margin-right: 0;
+}
+
+.input-control {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 10px 10px 10px;
+}
+.input-control .btn{
+	padding: 1px 20px;
+    min-width: auto;
+    margin-top: 0;
+}
+.input-control label {
+    display: inline-block;
+    max-width: 100%;
+    margin-bottom: 5px;
+}
+
+.caption {
+    cursor: pointer;
+}
+.caption, .text {
+    font-size: 18px;
+    color: rgb( 0, 0, 0 );
+    text-transform: uppercase;
+    text-align: right;
+}
+.input-control input, input.control {
+    border: none;
+    border-bottom: 1px solid #000;
+    outline: none;
+    font-size: 18px;
+    padding: 0;
+}
+.input-control input:nth-child(3) {
+    margin-right: 10px;
+}
+.input-control input:nth-child(4) {
+    margin-right: 10px;
+}
+.max-180 {
+    max-width: 100%;
+    width: 180px;
+}
+.max-100 {
+    max-width: 100%;
+    width: 110px;
+}
+
+label.checkbox input, label.radio input {
+    opacity: 0;
+    width: 0.1px!important;
+    height: 0.1px!important;
+    margin: 0!important;
+    display: inline-block;
+}
+.checkbox+.checkbox, .radio+.radio {
+    margin-top: -5px;
+}
+label.checkbox, label.radio {
+    display: inline-block;
+    vertical-align: middle;
+}
+.radio {
+    margin-top: -2px!important;
+    margin-left: 10px;
+    margin-bottom: 0!important;
+}
+.checkbox, .radio {
+    position: relative;
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+label.checkbox .virtual, label.radio .virtual {
+    position: relative;
+    cursor: pointer;
+    display: inline-block;
+    border-style: solid;
+    border-width: 1px;
+    border-color: rgb( 107, 107, 107 );
+    background-color: rgb( 244, 243, 243 );
+    width: 20px;
+    height: 20px;
+    vertical-align: sub;
+    transition: background-color .2s, border-color .2s;
+}
+label.radio .virtual {
+    background-color: #f4f3f3;
+    border-radius: 50%;
+}
+.input-control select {
+    border: none;
+    color: #000;
+    border-bottom: 1px solid #000;
+    padding-bottom: 2px;
+    font-size: 18px;
+}
+
+.apps-list {
+    width: calc(100% + 50px);
+    margin-left: -25px;
+}
+.apps-list td{
+	padding: 10px 25px;
+}
+.apps-list th {
+    padding: 0 25px;
+    border-radius: 0!important;
+}
+.apps-cart-footer {
+    padding: 20px 10px;
+    border-top: 2px solid rgb(75, 157, 76);
+    background: #eaeaea;
+}
+.apps-list{
+	border-radius: 0;
+}
+.apps-list thead{
+	border-radius: 0;
+}
+table.apps-list{
+    border-bottom: 0;
+
+}
+.apps-card-body{
+    padding-bottom: 0;
+
+}
+#search{
+    margin-left: 20px;
+    display: inline-block;
+}
+.form-control-feedback {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    display: block;
+    width: 35px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    pointer-events: none;
+}
+.form-control-clear {
+    z-index: 10;
+    pointer-events: auto;
+    cursor: pointer;
+}
+.hidden {
+    display: none!important;
+}
+form.search{
+    direction: rtl;
+    position: absolute;
+    width: 100%;
+    left: 0;
+    display: none;
+}
+form.search .form-group input {
+    height: 40px;
+}
+form.search .form-group {
+    margin-bottom: 0;
+    position: relative;
+    width: calc(100% - 30px);
+    margin-right: 15px;
+}
+.sky-card-header.showsearch{
+    padding-bottom: 40px;
+}
+.sky-card-header.showsearch form.search{
+    display: block;
+}
+#search:after {
+    position: absolute;
+    display: inline-block;
+    border-bottom-color: rgba(0, 0, 0, 0.2);
+    content: '';
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid #fff;
+    border-left: 10px solid transparent;
+    margin-top: 40px;
+    margin-left: -50px;
+    display: none;
+}
+.sky-card-header.showsearch  #search:after {
+    display: inline-block;
+}
+.replacefile-content{
+    background: #fff;
+    width: calc(100% + 30px);
+    margin-left: -15px;
+    min-height: calc( 100vh - 72px );
+    border-top: 2px solid rgb(75, 157, 76);
+    padding: 50px 15px;
+}
+.replacefile .pb-4,.replacefile .py-4 {
+    padding: 0!important;
+}
+
+.replacefile h1{
+  font-size: 24px;
+  font-family: 'Open Sans Hebrew';
+  color: rgb( 0, 0, 0 );
+  font-weight: bold;
+  text-transform: uppercase;
+  line-height: 2;
+}
+.replacefile h3{
+  font-size: 16px;
+  font-family: 'Open Sans Hebrew';
+  color: rgb( 0, 0, 0 );
+  font-weight: bold;
+  text-transform: uppercase;
+  line-height: 3;
+}
+
+label.checkbox input:checked + .virtual::after, label.radio input:checked + .virtual::after {
+    opacity: 1;
+    transition: opacity .2s;
+}
+label.radio input + .virtual::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: block;
+    background: #000;
+    opacity: 0;
+    transition: opacity .2s;
+    margin-right: 4px;
+    position: relative;
+    margin-top: 4px;
+}
+.faind_line .save_row span:last-child{
+    display: none;
+}
+.faind_line.disabled-filds .save_row span:first-child{
+    display: none;
+}
+.faind_line.disabled-filds .save_row span:last-child{
+    display: inline-block;
+}
+.disabled-filds .save_row{
+    background: transparent;
+    font-size: 18px;
+    color: rgb( 76, 157, 76 );
+    text-transform: uppercase;
+    pointer-events: none;
+    opacity: 1;
+}
+.disabled-filds .save_row:before{
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 17px;
+    background: url(../img/apr.png);
+    background-repeat: no-repeat;
+    background-size: cover;
+    margin-left: 3px;
+}
+input:disabled{
+    background: transparent!important;
+}

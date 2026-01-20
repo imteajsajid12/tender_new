@@ -1,0 +1,22 @@
+textarea, input, .input-group-text, body{
+    background-color: white;
+}
+
+textarea, input, .input-group-append, .input-group-text{
+    border: none !important;
+    resize: none;
+}
+label{
+    font-weight: bolder;
+    text-align: right;
+    width: 100%;
+}
+textarea {
+    field-sizing: content !important;
+}
+div.form-control{
+    height: 100% !important;
+}
+.form-group{
+    margin-bottom: 0.5rem !important;
+}

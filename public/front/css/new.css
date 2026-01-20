@@ -1,0 +1,226 @@
+.ucase {
+    position: relative; top: -0.5em; font-size: 80%;
+}
+
+.fw {
+    width:100%;
+}
+
+.bold {
+    font-weight:700
+}
+
+.leftdowborder
+{
+    border-left:thin solid black;
+    border-bottom:thin solid black;
+}
+
+.w100
+{
+    width:100px
+}
+
+.wQuart
+{
+    width: 25%;
+}
+
+.w40p {
+    width: 40%;
+}
+.w50p {
+    width: 50%;
+}
+.w60p {
+    width: 60%;
+}
+
+
+.w35p {
+    width: 35%;
+}
+.w33p {
+    width: 33%;
+}
+.w34p {
+    width: 34%;
+}
+
+.w55p {
+    width: 55%;
+}
+.w45p {
+    width: 45%;
+}
+
+.w30p {
+    width: 30%;
+}
+
+.wlet
+{
+    width:30px
+}
+
+.w4let
+{
+    width:120px
+}
+
+.w25p
+
+{
+    width:25%;
+}
+
+
+.w80p {
+    width:80%;
+}
+
+.w20p {
+    width:20%;
+}
+.w15p {
+    width:15%;
+}
+
+.w10p {
+    width:10%;
+}
+
+.ball {
+    border:thin solid black;
+}
+
+.borderright {
+    border-right:thin solid black;
+}
+
+.borderleft {
+    border-left:thin solid black;
+}
+.bordertop {
+    border-top:thin solid black;
+}.borderbottom {
+    border-bottom:thin solid black;
+}
+
+.noborderbottom {
+    border-bottom:none;
+
+}
+.noborderleft {
+    border-left:none;
+}
+.noborderright {
+    border-right:none;
+}
+
+.nobordertop {
+    border-top:none;
+}
+
+.p5r {
+    padding-right: 5px;
+}
+.icontrol {
+    display:inline-block
+}
+
+.icontrol>div>input {border:none;padding:5px;font-size:20px;color:black}
+.icontrol>div>span>input[type=radio] {    transform: translateY(8px);}
+.icontrol>div>span>span {   padding-left:5px}
+.icontrol>div>span>input[type=checkbox] {color:red}
+.icontrol>div>span {padding-right:5px;}
+.tableright>div>div>input {border:none}
+.wwline>div>div>input[type=radio] {    transform: translateY(8px);margin-left:5px}
+.wwline>div>div>input[type=checkbox] {    transform: translateY(8px);margin-left:5px}
+.wwline>div>div>div>input[type=checkbox] {    transform: translateY(8px);margin-left:5px}
+.wwline>div>input[type=checkbox] {    transform: translateY(8px);margin-left:5px}
+.inputnumbers {
+
+    border: 1px solid #ccc;
+    background: linear-gradient(to right, #ccc 1px, transparent 0);
+    background-size: 20px 1px;
+    border-top:none;
+    border-bottom:none;
+    font: 18px monaco, monospace;
+    text-transform: uppercase;
+
+}
+
+#Deductionportfolio {
+    border: 1px solid #ccc;
+    background: linear-gradient(to right, #ccc 1px, transparent 0);
+    background-size: 20px 1px;
+    width: 180px;
+    border-top:none;
+    border-bottom:none;
+    font: 18px monaco, monospace;
+    letter-spacing: 9.5px;
+    text-indent: -10px;
+    text-transform: uppercase;
+}
+
+
+#idnumber {
+    width: 180px;
+    letter-spacing: 10px;
+    text-indent: 0;
+}
+
+#postal {
+    width: 120px;
+    letter-spacing: 10px;
+    text-indent: 0;
+}
+
+
+
+.sw {
+    font: 18px monaco, monospace;
+}
+
+.wblock {
+    display:flex;justify-content: space-between;
+}
+
+.whead {font-size:16px;font-weight:700;text-align: center}
+
+
+.topborder {
+    border:thin solid black;border-bottom:none;
+}
+.mr10r {
+    margin-right:10px;
+}
+.mr10t {
+    margin-top:10px;
+}
+
+
+.w10n
+{
+    width:100%;border:none;
+}
+
+
+#tabletestdown>div>div {font-weight: 400;font-size:16px}
+#tabletestdown>div>div[type=checkbox]  {margin-top:5px}
+#tabletestdown>div {font-weight: 700;font-size:20px}
+
+.cdown>input {transform: translateY(8px)}
+
+
+#tabledata>div>div {font-weight:700;font-size:20px}
+#tabledata2>div>div {font-weight:700;font-size:20px;}
+#tabledata2>div>div>span {font-weight:400;font-size:18px;}
+
+#tabledata>div> {font-weight:400;font-size:20px}
+#tabledata2>div>div>[type=checkbox]  {transform: translateY(7px)}
+
+.bbottom {padding-bottom: 15px}
+
+.border {border:thin solid black}

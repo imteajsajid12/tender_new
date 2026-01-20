@@ -1,0 +1,73 @@
+----tenders_stat
+
+SELECT
+    `admin_tholon`.`tenders`.`id` AS `id`,
+    `admin_tholon`.`tenders`.`start_date` AS `start_date`,
+    `admin_tholon`.`tenders`.`has_salary` AS `has_salary`,
+    `admin_tholon`.`tenders`.`is_test_required` AS `is_test_required`,
+    `admin_tholon`.`tenders`.`is_recommended` AS `is_recommended`,
+    `admin_tholon`.`tenders`.`is_drushim` AS `is_drushim`,
+    `admin_tholon`.`tenders`.`ttype` AS `ttype`,
+    `admin_tholon`.`tenders`.`brunch` AS `brunch`,
+    `admin_tholon`.`tenders`.`created_by` AS `created_by`,
+    `admin_tholon`.`tenders`.`job_details` AS `job_details`,
+    `admin_tholon`.`tenders`.`functional_level` AS `functional_level`,
+    `admin_tholon`.`tenders`.`input_manager` AS `input_manager`,
+    `admin_tholon`.`tenders`.`job_scope` AS `job_scope`,
+    `admin_tholon`.`tenders`.`subordinations` AS `subordinations`,
+    `admin_tholon`.`tenders`.`grades_voltage` AS `grades_voltage`,
+    `admin_tholon`.`tenders`.`finish_date` AS `finish_date`,
+    `admin_tholon`.`tenders`.`tname` AS `tname`,
+    `admin_tholon`.`tenders`.`generated_id` AS `generated_id`,
+    `admin_tholon`.`tenders`.`status` AS `status`,
+    `admin_tholon`.`tenders`.`created_date` AS `created_date`,
+    `admin_tholon`.`tenders`.`stopped` AS `stopped`,
+    `admin_tholon`.`tenders`.`deleted` AS `deleted`,
+    `admin_tholon`.`tenders`.`conditions` AS `conditions`,
+    `admin_tholon`.`tenders`.`tender_type` AS `tender_type`,
+    `admin_tholon`.`tenders`.`tender_status` AS `tender_status`,
+    `count`.`ccount` AS `ccount`,
+    `pending`.`pendingcount` AS `pendingcount`,
+    `accepted`.`accepted` AS `accepted`,
+    `rejected`.`trejected` AS `trejected`,
+    `tf`.`file_name` AS `tender_file_name`,
+    `tf`.`url` AS `tender_file_url`
+FROM
+    (
+        (
+            (
+                (
+                    (
+                        `admin_tholon`.`tenders`
+                    LEFT JOIN `admin_tholon`.`app_count_val` `count`
+                    ON
+                        (
+                            `count`.`tenderval` = `admin_tholon`.`tenders`.`generated_id`
+                        )
+                    )
+                LEFT JOIN `admin_tholon`.`app_count_pending` `pending`
+                ON
+                    (
+                        `pending`.`tenderval` = `admin_tholon`.`tenders`.`generated_id`
+                    )
+                )
+            LEFT JOIN `admin_tholon`.`app_accepted` `accepted`
+            ON
+                (
+                    `accepted`.`tenderval` = `admin_tholon`.`tenders`.`generated_id`
+                )
+            )
+        LEFT JOIN `admin_tholon`.`app_rejected` `rejected`
+        ON
+            (
+                `rejected`.`tenderval` = `admin_tholon`.`tenders`.`generated_id`
+            )
+        )
+    LEFT JOIN `admin_tholon`.`tenders_active_files` `tf`
+    ON
+        (
+            `admin_tholon`.`tenders`.`id` = `tf`.`tender_id`
+        )
+    )
+WHERE
+    `admin_tholon`.`tenders`.`deleted` = 0
