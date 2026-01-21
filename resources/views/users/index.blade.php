@@ -100,6 +100,13 @@
 						@include('users.twofactor-settings')
 					</div>
 				</div>
+
+				<!-- Security Log Tab Content -->
+				<div class="tab-pane fade" id="securitylog-content" role="tabpanel" aria-labelledby="securitylog-tab">
+					<div class="container-fluid py-4">
+						@include('users.security-logs')
+					</div>
+				</div>
 			</div>
 		</section>
 	</main>
@@ -157,7 +164,8 @@
 		margin-left: 8px;
 	}
 
-	#twofactor-content {
+	#twofactor-content,
+	#securitylog-content {
 		background: #f8f9fa;
 		min-height: calc(100vh - 200px);
 	}
@@ -168,6 +176,76 @@
 
 	#users-content {
 		height: calc(100vh - 200px);
+	}
+
+	/* Fix for Bootstrap buttons */
+	.btn {
+		display: inline-block;
+		font-weight: 400;
+		text-align: center;
+		vertical-align: middle;
+		cursor: pointer;
+		border: 1px solid transparent;
+		padding: 0.375rem 0.75rem;
+		font-size: 1rem;
+		line-height: 1.5;
+		border-radius: 0.25rem;
+		transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+	}
+
+	.btn-primary {
+		color: #fff;
+		background-color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-primary:hover {
+		color: #fff;
+		background-color: #0069d9;
+		border-color: #0062cc;
+	}
+
+	.btn-secondary {
+		color: #fff;
+		background-color: #6c757d;
+		border-color: #6c757d;
+	}
+
+	.btn-secondary:hover {
+		color: #fff;
+		background-color: #5a6268;
+		border-color: #545b62;
+	}
+
+	.btn-outline-primary {
+		color: #007bff;
+		background-color: transparent;
+		border-color: #007bff;
+	}
+
+	.btn-outline-primary:hover {
+		color: #fff;
+		background-color: #007bff;
+		border-color: #007bff;
+	}
+
+	.btn-outline-secondary {
+		color: #6c757d;
+		background-color: transparent;
+		border-color: #6c757d;
+	}
+
+	.btn-outline-secondary:hover {
+		color: #fff;
+		background-color: #6c757d;
+		border-color: #6c757d;
+	}
+
+	.btn-sm {
+		padding: 0.25rem 0.5rem;
+		font-size: 0.875rem;
+		line-height: 1.5;
+		border-radius: 0.2rem;
 	}
 	</style>
 @endsection

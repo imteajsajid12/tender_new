@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\File;
 //use DB;
 class UsersController extends Controller
 {
@@ -34,13 +35,48 @@ class UsersController extends Controller
     //Here is a Collection of all our users.
         $users = \App\User::get_all_users();
 
+        // Get security logs for the security log tab
+        $securityLogs = $this->getSecurityLogs();
 
         return view('users.index',[
             'pageTitle'=>'Users',
             'user'=>Auth::user(),
             'users' => $users,
-            'userdata' => $this->userdata
+            'userdata' => $this->userdata,
+            'securityLogs' => $securityLogs
         ]);
+    }
+
+    /**
+     * Get security logs for display
+     */
+    private function getSecurityLogs()
+    {
+        $securityLogPath = storage_path('logs/security');
+        $logs = [];
+
+        if (File::isDirectory($securityLogPath)) {
+            $monthDirs = File::directories($securityLogPath);
+
+            foreach ($monthDirs as $monthDir) {
+                $month = basename($monthDir);
+                $files = File::files($monthDir);
+
+                foreach ($files as $file) {
+                    $logs[] = [
+                        'month' => $month,
+                        'date' => pathinfo($file->getFilename(), PATHINFO_FILENAME),
+                        'filename' => $file->getFilename(),
+                        'size' => $file->getSize(),
+                        'modified' => date('Y-m-d H:i:s', $file->getMTime()),
+                    ];
+                }
+            }
+
+            usort($logs, fn($a, $b) => strcmp($b['date'], $a['date']));
+        }
+
+        return $logs;
     }
 
     public function create_user(Request $request){
