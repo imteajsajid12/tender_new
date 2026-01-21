@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
             resendBtn.disabled = false;
             resendBtn.innerHTML = 'שלח קוד חדש';
         } else {
-            resendCountdown.textContent = resendCooldown;
+            resendCountdown.textContent = Math.floor(resendCooldown);
         }
     }, 1000);
     @endif
