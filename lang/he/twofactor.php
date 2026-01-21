@@ -57,4 +57,62 @@ return [
     'login_success' => 'התחברת בהצלחה',
     'verification_complete' => 'האימות הושלם בהצלחה',
 
+    // Settings Page
+    'settings_title' => 'הגדרות אימות דו-שלבי (2FA)',
+    'settings_subtitle' => 'הגדרות אימות דו-שלבי למערכת - קוד OTP נשלח באימייל',
+
+    // Settings - General
+    'settings_general' => 'הגדרות כלליות',
+    'settings_enabled' => 'הפעל אימות דו-שלבי',
+    'settings_enabled_help' => 'כאשר מופעל, המשתמשים יצטרכו להזין קוד אימות שנשלח לאימייל שלהם',
+    'settings_status_enabled' => 'מופעל',
+    'settings_status_disabled' => 'מושבת',
+
+    // Settings - OTP
+    'settings_otp' => 'הגדרות קוד OTP',
+    'settings_otp_length' => 'אורך קוד OTP',
+    'settings_otp_length_digits' => ':count ספרות',
+    'settings_otp_length_recommended' => '(מומלץ)',
+    'settings_otp_expiry' => 'זמן תפוגה (דקות)',
+    'settings_otp_expiry_help' => 'הקוד יפוג לאחר מספר הדקות שנקבע (1-60)',
+    'settings_max_attempts' => 'מקסימום ניסיונות',
+    'settings_max_attempts_help' => 'מספר הניסיונות המרבי להזנת קוד שגוי (1-10)',
+
+    // Settings - Rate Limiting
+    'settings_rate_limiting' => 'הגבלת קצב',
+    'settings_rate_limit' => 'מקסימום קודים לשעה',
+    'settings_rate_limit_help' => 'מספר הקודים המרבי שניתן לשלוח למשתמש בשעה',
+    'settings_resend_cooldown' => 'זמן המתנה לשליחה חוזרת (שניות)',
+    'settings_resend_cooldown_help' => 'זמן ההמתנה בין בקשות לשליחה חוזרת של קוד (30-300 שניות)',
+
+    // Settings - Device Memory
+    'settings_device_memory' => 'זיכרון מכשיר',
+    'settings_remember_device' => 'אפשר זכירת מכשיר',
+    'settings_remember_device_help' => 'מאפשר למשתמשים לדלג על אימות דו-שלבי במכשירים מוכרים',
+    'settings_remember_days' => 'ימים לזכירת מכשיר',
+    'settings_remember_days_help' => 'מספר הימים שהמכשיר נזכר (1-90)',
+
+    // Settings - Exemptions
+    'settings_exemptions' => 'פטורים',
+    'settings_exempt_roles' => 'תפקידים פטורים',
+    'settings_exempt_roles_help' => 'תפקידים שפטורים מאימות דו-שלבי (מופרדים בפסיק)',
+    'settings_exempt_roles_placeholder' => 'לדוגמה: admin,superuser',
+    'settings_ip_whitelist' => 'כתובות IP מורשות',
+    'settings_ip_whitelist_help' => 'כתובות IP שפטורות מאימות דו-שלבי (מופרדות בפסיק)',
+    'settings_ip_whitelist_placeholder' => 'לדוגמה: 192.168.1.1,10.0.0.0/24',
+
+    // Settings - Statistics
+    'settings_statistics' => 'סטטיסטיקות היום',
+    'settings_stat_sent' => 'קודים נשלחו',
+    'settings_stat_verified' => 'אומתו בהצלחה',
+    'settings_stat_failed' => 'ניסיונות כושלים',
+
+    // Settings - Actions
+    'settings_save' => 'שמור הגדרות',
+    'settings_refresh' => 'רענן',
+    'settings_saved' => 'הגדרות האימות הדו-שלבי עודכנו בהצלחה',
+    'settings_save_error' => 'שגיאה בשמירת ההגדרות',
+    'settings_load_error' => 'שגיאה בטעינת ההגדרות',
+    'settings_no_permission' => 'אין לך הרשאה לשנות הגדרות',
+
 ];

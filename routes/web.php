@@ -13,6 +13,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\UsersController;
 use App\Http\Controllers\ReplacefileController;
 use App\Http\Controllers\SecurityLogController;
+use App\Http\Controllers\TwoFactorSettingsController;
 use App\Http\Middleware\CheckPermissions;
 
 use Illuminate\Support\Facades\Mail;
@@ -211,6 +212,13 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 		Route::get('/', [SecurityLogController::class, 'index'])->name('index');
 		Route::get('/download', [SecurityLogController::class, 'download'])->name('download');
 		Route::get('/view/{date}', [SecurityLogController::class, 'show'])->name('show');
+	});
+
+	// Two-Factor Authentication Settings Routes
+	Route::prefix('twofactor-settings')->name('twofactor-settings.')->group(function () {
+		Route::get('/', [TwoFactorSettingsController::class, 'getSettings'])->name('get');
+		Route::post('/', [TwoFactorSettingsController::class, 'updateSettings'])->name('update');
+		Route::get('/statistics', [TwoFactorSettingsController::class, 'getStatistics'])->name('statistics');
 	});
 });
 
