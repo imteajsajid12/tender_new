@@ -50,8 +50,7 @@ Route::match(['get', 'post'], '/', function () {
 Route::post('/check-status/check', [TendersController::class, 'check_status']);
 
 Route::post('login', [LoginController::class, 'login']);
-Route::post('logout', [LoginController::class, 'logout'])->name('logout');
-Route::get('logout', [LoginController::class, 'logout'])->name('logout');
+Route::match(['get', 'post'], 'logout', [LoginController::class, 'logout'])->name('logout');
 
 /*
 |--------------------------------------------------------------------------

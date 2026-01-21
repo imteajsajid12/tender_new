@@ -458,13 +458,13 @@ function loadStatistics() {
 function saveTwoFactorSettings() {
     var formData = {
         _token: $('input[name="_token"]').val(),
-        enabled: $('#twofactor_enabled').is(':checked'),
+        enabled: $('#twofactor_enabled').is(':checked') ? 1 : 0,
         otp_length: parseInt($('#otp_length').val()),
         otp_expiry: parseInt($('#otp_expiry').val()),
         max_attempts: parseInt($('#max_attempts').val()),
         rate_limit: parseInt($('#rate_limit').val()),
         resend_cooldown: parseInt($('#resend_cooldown').val()),
-        remember_device: $('#remember_device').is(':checked'),
+        remember_device: $('#remember_device').is(':checked') ? 1 : 0,
         remember_days: parseInt($('#remember_days').val()),
         exempt_roles: $('#exempt_roles').val(),
         ip_whitelist: $('#ip_whitelist').val()
