@@ -2387,7 +2387,19 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 }
             }
 
+            // Decrypt file names and URLs for all files before passing to view
             $encryptionService = app(\App\Services\EncryptionService::class);
+            foreach ($afiles as $file) {
+                // Decrypt file_name if encrypted
+                if (isset($file->file_name) && $encryptionService->isEncrypted($file->file_name)) {
+                    $file->file_name = $encryptionService->decrypt($file->file_name);
+                }
+                // Decrypt url if encrypted
+                if (isset($file->url) && $encryptionService->isEncrypted($file->url)) {
+                    $file->url = $encryptionService->decrypt($file->url);
+                }
+            }
+
             $decfile = collect();
             if (isset($p1) && !empty($p1)) {
                 $files = DB::table('apps_file')->where('app_id', $p1)->get();
@@ -3558,6 +3570,19 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         $appId = $request->input('app_id', 'unknown');
         $action = $request->input('action', 'view');
 
+        // Decrypt file name if it's encrypted
+        if ($fileName !== 'unknown') {
+            try {
+                $encryptionService = app(\App\Services\EncryptionService::class);
+                if ($encryptionService->isEncrypted($fileName)) {
+                    $fileName = $encryptionService->decrypt($fileName);
+                }
+            } catch (\Exception $e) {
+                // If decryption fails, log the original value
+                \Illuminate\Support\Facades\Log::warning("Failed to decrypt file name in logFileAccess: " . $e->getMessage());
+            }
+        }
+
         security_log('INFO', 'DOWNLOAD_FILE', [
             'user' => $authUser, // Pass user object for better logging (handles null automatically)
             'ip' => $request->ip(),
@@ -3604,11 +3629,23 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         $fileName = basename($fullPath);
         $authUser = auth()->user();
 
+        // Decrypt file name if it's encrypted for logging
+        $logFileName = $fileName;
+        try {
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            if ($encryptionService->isEncrypted($fileName)) {
+                $logFileName = $encryptionService->decrypt($fileName);
+            }
+        } catch (\Exception $e) {
+            // If decryption fails, use original filename for logging
+            \Illuminate\Support\Facades\Log::warning("Failed to decrypt file name in secureFileDownload: " . $e->getMessage());
+        }
+
         // Security log for file download
         security_log('INFO', 'DOWNLOAD_FILE', [
             'user' => $authUser, // Pass user object for better logging (handles null automatically)
             'ip' => $request->ip(),
-            'file' => $fileName,
+            'file' => $logFileName,
             'path' => $filePath
         ]);
 

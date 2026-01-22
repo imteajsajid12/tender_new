@@ -170,6 +170,21 @@ function security_log(string $level, string $action, array $data = []): void
         }
     }
 
+    // Decrypt file parameter if it's encrypted (for file download/access logs)
+    if (isset($data['file'])) {
+        try {
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            // Check if the file value is encrypted
+            if ($encryptionService->isEncrypted($data['file'])) {
+                $decryptedFileName = $encryptionService->decrypt($data['file']);
+                $data['file'] = $decryptedFileName;
+            }
+        } catch (\Exception $e) {
+            // If decryption fails, keep original value
+            \Illuminate\Support\Facades\Log::warning("Failed to decrypt file name in security log: " . $e->getMessage());
+        }
+    }
+
     // Build data string with pipe separators
     $dataString = '';
     foreach ($data as $key => $value) {
