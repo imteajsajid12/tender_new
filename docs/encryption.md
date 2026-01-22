@@ -556,3 +556,74 @@ php artisan users:encrypt           # Encrypt all users
 php artisan users:encrypt --decrypt # Decrypt all users
 php artisan users:encrypt --dry-run # Preview changes
 ```
+
+## New: Applications and File metadata encryption commands
+
+Two new Artisan commands were added to handle encryption for `applications` and `apps_file` tables.
+
+Usage (dry-run first):
+
+```bash
+# Preview encrypting applications.email (no changes made)
+php artisan applications:encrypt --dry-run
+
+# Actually encrypt applications.email
+php artisan applications:encrypt
+
+# Preview decrypting applications.email
+php artisan applications:encrypt --decrypt --dry-run
+
+# Decrypt applications.email (restores plaintext)
+php artisan applications:encrypt --decrypt
+```
+
+```bash
+# Preview encrypting apps_file.url and apps_file.file_name
+php artisan appsfile:encrypt --dry-run
+
+# Actually encrypt apps_file.url and apps_file.file_name
+php artisan appsfile:encrypt
+
+# Preview decrypting apps_file entries
+php artisan appsfile:encrypt --decrypt --dry-run
+
+# Decrypt apps_file entries (restores plaintext url/file_name)
+php artisan appsfile:encrypt --decrypt
+```
+
+Notes on running the commands safely
+- Always run with `--dry-run` first and inspect the output. The commands will report Processed/Skipped counts.
+- Make a full database backup before running the commands without `--dry-run`.
+- Run these commands in a staging environment first to verify application behavior (file listing, downloads, decision flows).
+
+Sample dry-run output (what you should expect):
+
+```
+Encrypting applications.email field...
+DRY RUN MODE - No changes will be made
+ 0/3 [░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0%
+ 3/3 [▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓] 100%
+
+Applications Summary:
+    Processed: 3
+    Skipped (already encrypted): 0
+
+Dry run complete. Run without --dry-run to apply changes.
+```
+
+And for `appsfile:encrypt --dry-run`:
+
+```
+Encrypting apps_file table (url, file_name)...
+DRY RUN MODE - No changes will be made
+    0/70 [░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0%
+ 70/70 [▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓] 100%
+
+Apps_file Summary:
+    Processed: 70
+    Skipped (already encrypted): 0
+
+Dry run complete. Run without --dry-run to apply changes.
+```
+
+If you want help adding a deterministic hash column for efficient DB queries (recommended for large data sets), see the `Optional` section below.

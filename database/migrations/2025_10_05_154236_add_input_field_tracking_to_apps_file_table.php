@@ -13,8 +13,12 @@ return new class extends Migration
     {
         Schema::table('apps_file', function (Blueprint $table) {
             // Add columns to track which input field was used for upload
-            $table->string('input_field_name')->nullable()->after('file_name')->comment('The HTML input field name/key used for upload');
-            $table->text('input_field_label')->nullable()->after('input_field_name')->comment('The Hebrew label/title of the input field');
+            if (!Schema::hasColumn('apps_file', 'input_field_name')) {
+                $table->string('input_field_name')->nullable()->after('file_name')->comment('The HTML input field name/key used for upload');
+            }
+            if (!Schema::hasColumn('apps_file', 'input_field_label')) {
+                $table->text('input_field_label')->nullable()->after('input_field_name')->comment('The Hebrew label/title of the input field');
+            }
         });
     }
 
