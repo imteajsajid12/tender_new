@@ -979,6 +979,9 @@ class Forms extends Model
 
 	public static function add_app($request, $form, $app_id)
 	{
+		// Increase PHP execution time for PDF generation
+		set_time_limit(180);
+
 		$error['error'] = 'אירעה שגיאה לא צפויה, אנא רענן את הדף ונסה שוב עכשיו או אחר כך.';
 		$tid = $request->tenderid;
 		$decisionNumId = $request->decisionId;
@@ -1040,20 +1043,22 @@ class Forms extends Model
 				'request' => $request
 				//'app_dec' => $app_dec
 			])->setPaper('A4')->setOrientation('portrait');
-			$pdf->setOption('enable-javascript', true);
-			$pdf->setOption('javascript-delay', 5000);
+			// Disable JavaScript to speed up PDF generation (prevents timeout)
+			$pdf->setOption('disable-javascript', true);
 			$pdf->setOption('enable-smart-shrinking', true);
-			$pdf->setOption('no-stop-slow-scripts', true);
 			$pdf->setOption('margin-top', 10);
 			$pdf->setOption('margin-bottom', 0);
 			$pdf->setOption('margin-left', 0);
 			$pdf->setOption('margin-right', 0);
+			$pdf->setOption('no-outline', true);
+			$pdf->setOption('load-error-handling', 'ignore');
+			$pdf->setOption('load-media-error-handling', 'ignore');
 
 			$pdf->save($pdfpath);
+			Log::info('PDF form-new generated: ' . $pdfpath);
 		} catch (\Throwable $th) {
-			//throw $th;
-            Log::debug('pdf error');
-			Log::debug(json_encode($th));
+			Log::error('pdf error: ' . $th->getMessage());
+			// Continue without PDF - don't block form submission
 		}
 
 		$file_data[] = [
@@ -1079,20 +1084,22 @@ class Forms extends Model
 				'form' => $form,
 				'app_dec' => $app_dec
 			])->setPaper('A4')->setOrientation('portrait');
-			$pdfold->setOption('enable-javascript', true);
-			$pdfold->setOption('javascript-delay', 5000);
+			// Disable JavaScript to speed up PDF generation (prevents timeout)
+			$pdfold->setOption('disable-javascript', true);
 			$pdfold->setOption('enable-smart-shrinking', true);
-			$pdfold->setOption('no-stop-slow-scripts', true);
 			$pdfold->setOption('margin-top', 10);
 			$pdfold->setOption('margin-bottom', 0);
 			$pdfold->setOption('margin-left', 0);
 			$pdfold->setOption('margin-right', 0);
+			$pdfold->setOption('no-outline', true);
+			$pdfold->setOption('load-error-handling', 'ignore');
+			$pdfold->setOption('load-media-error-handling', 'ignore');
 
 			$pdfold->save($pdfpathold);
+			Log::info('PDF form-old generated: ' . $pdfpathold);
 		} catch (\Throwable $th) {
-			//throw $th;
-            Log::debug('pdfold error');
-			Log::debug(json_encode($th));
+			Log::error('pdfold error: ' . $th->getMessage());
+			// Continue without PDF - don't block form submission
 		}
 
 		$file_data[] = [

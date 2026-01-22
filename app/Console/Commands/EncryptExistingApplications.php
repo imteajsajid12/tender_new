@@ -80,6 +80,8 @@ class EncryptExistingApplications extends Command
                 try {
                     $currentEmail = $record->email;
 
+                    $alreadyEncrypted = $this->encryptionService->isEncrypted($currentEmail);
+
                     if ($decrypt) {
                         $newEmail = $this->encryptionService->decrypt($currentEmail);
 
@@ -89,8 +91,28 @@ class EncryptExistingApplications extends Command
                             continue;
                         }
                     } else {
-                        if ($this->encryptionService->isEncrypted($currentEmail)) {
-                            $skipped++;
+                        if ($alreadyEncrypted) {
+                            // Email is already encrypted, but we still need to update encryption_key_slot if it's null
+                            $needsKeySlotUpdate = false;
+                            try {
+                                if (\Schema::hasColumn($table, 'encryption_key_slot')) {
+                                    $currentKeySlot = $record->encryption_key_slot ?? null;
+                                    if ($currentKeySlot === null) {
+                                        $needsKeySlotUpdate = true;
+                                    }
+                                }
+                            } catch (\Exception $ex) {
+                                // Ignore schema check errors
+                            }
+
+                            if ($needsKeySlotUpdate && !$dryRun) {
+                                DB::table($table)
+                                    ->where($idCol, $record->{$idCol})
+                                    ->update(['encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()]);
+                                $processed++;
+                            } else {
+                                $skipped++;
+                            }
                             $progressBar->advance();
                             continue;
                         }

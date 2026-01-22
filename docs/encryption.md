@@ -627,3 +627,11 @@ Dry run complete. Run without --dry-run to apply changes.
 ```
 
 If you want help adding a deterministic hash column for efficient DB queries (recommended for large data sets), see the `Optional` section below.
+```
+# Encrypt emails in applications + app_decisions (will write into DB)
+php82 artisan applications:encrypt
+
+# Encrypt apps_file.url and apps_file.file_name
+php82 artisan appsfile:encrypt
+
+```

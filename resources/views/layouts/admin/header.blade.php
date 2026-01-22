@@ -11,7 +11,7 @@
     <title>{{ $pageTitle }} | {{ request()->host() }}</title>
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('/img/favicon-16x16.png') }}">
     <!-- Scripts -->
-    {{-- <script src="{{ asset('js/app.js') }}"></script> --}}
+    <script src="{{ asset('js/app.js') }}"></script>
 
 
     <!-- Fonts -->
