@@ -55,7 +55,7 @@ class SecurityLogController extends Controller
 
         // Log this download action
         security_log('INFO', 'DOWNLOAD_FILE', [
-            'user' => "admin_{$user->id}",
+            'user' => $user, // Pass user object for better logging
             'ip' => $request->ip(),
             'file' => "security_log_{$date}.log",
         ]);

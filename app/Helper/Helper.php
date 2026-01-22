@@ -49,7 +49,7 @@ function uploadFileSearch($file){
 /**
  * Log security activity to the security channel.
  *
- * Format: 2026-01-18 10:15:32 | INFO  | LOGIN_ATTEMPT      | user=user_123  | ip=192.168.1.45 | success=true
+ * Format: 2026-01-18 10:15:32 | INFO  | LOGIN_ATTEMPT      | user=user_123 | email=user@example.com | ip=192.168.1.45 | success=true
  *
  * @param string $level Log level: INFO, WARN, ERROR, DEBUG
  * @param string $action Action type: LOGIN_ATTEMPT, DOWNLOAD_FILE, CHANGE_PERMISSIONS
@@ -66,10 +66,116 @@ function security_log(string $level, string $action, array $data = []): void
     // Pad action to 18 characters for alignment
     $actionPadded = str_pad(strtoupper($action), 18, ' ', STR_PAD_RIGHT);
 
+    // Enhance user identification - add email/name if user object or ID is provided
+    if (isset($data['user'])) {
+        $userIdentifier = $data['user'];
+        
+        // Handle null or unauthenticated user
+        if ($userIdentifier === null || $userIdentifier === 'guest' || $userIdentifier === 'unknown') {
+            $data['user_id'] = 'UNAUTHENTICATED';
+            $data['email'] = 'not_logged_in';
+            unset($data['user']);
+        }
+        // If user is an object (User model instance)
+        elseif (is_object($userIdentifier) && method_exists($userIdentifier, 'getAttribute')) {
+            $userId = $userIdentifier->id;
+            $userEmail = $userIdentifier->email;
+            $userName = $userIdentifier->name ?? null;
+            
+            $data['user_id'] = "user_{$userId}";
+            $data['email'] = $userEmail;
+            if ($userName) {
+                $data['name'] = $userName;
+            }
+            unset($data['user']); // Remove the object
+        }
+        // If user is numeric ID
+        elseif (is_numeric($userIdentifier)) {
+            try {
+                $user = \App\Models\User::find($userIdentifier);
+                if ($user) {
+                    $data['user_id'] = "user_{$userIdentifier}";
+                    $data['email'] = $user->email;
+                    if ($user->name) {
+                        $data['name'] = $user->name;
+                    }
+                    unset($data['user']);
+                } else {
+                    // User ID doesn't exist in database
+                    $data['user_id'] = "user_{$userIdentifier}";
+                    $data['email'] = 'user_not_found';
+                    unset($data['user']);
+                }
+            } catch (\Exception $e) {
+                // Keep original if lookup fails
+                $data['user_id'] = is_numeric($userIdentifier) ? "user_{$userIdentifier}" : $userIdentifier;
+                $data['email'] = 'lookup_failed';
+                unset($data['user']);
+            }
+        }
+        // If user is string like "user_123", "user_guest", etc
+        elseif (is_string($userIdentifier)) {
+            // Try to extract user ID and look up email
+            if (preg_match('/^user_(\d+)$/', $userIdentifier, $matches)) {
+                $userId = $matches[1];
+                try {
+                    $user = \App\Models\User::find($userId);
+                    if ($user) {
+                        $data['user_id'] = "user_{$userId}";
+                        $data['email'] = $user->email;
+                        if ($user->name) {
+                            $data['name'] = $user->name;
+                        }
+                    } else {
+                        $data['user_id'] = $userIdentifier;
+                        $data['email'] = 'user_not_found';
+                    }
+                } catch (\Exception $e) {
+                    $data['user_id'] = $userIdentifier;
+                    $data['email'] = 'lookup_failed';
+                }
+            } else {
+                // Keep as is - might be email or other identifier
+                $data['user_id'] = $userIdentifier;
+                if (!isset($data['email'])) {
+                    $data['email'] = 'not_provided';
+                }
+            }
+            unset($data['user']);
+        }
+        // Fallback for any other type
+        else {
+            $data['user_id'] = 'UNKNOWN_TYPE';
+            $data['email'] = 'invalid_user_data';
+            unset($data['user']);
+        }
+    }
+    // If no user provided, check if currently authenticated
+    elseif (!isset($data['user_id']) && !isset($data['email'])) {
+        try {
+            $currentUser = \Illuminate\Support\Facades\Auth::user();
+            if ($currentUser) {
+                $data['user_id'] = "user_{$currentUser->id}";
+                $data['email'] = $currentUser->email;
+                if ($currentUser->name) {
+                    $data['name'] = $currentUser->name;
+                }
+            } else {
+                $data['user_id'] = 'UNAUTHENTICATED';
+                $data['email'] = 'not_logged_in';
+            }
+        } catch (\Exception $e) {
+            $data['user_id'] = 'AUTH_CHECK_FAILED';
+            $data['email'] = 'error_checking_auth';
+        }
+    }
+
     // Build data string with pipe separators
     $dataString = '';
     foreach ($data as $key => $value) {
-        $dataString .= " | {$key}={$value}";
+        // Sanitize values to prevent log injection
+        $sanitizedValue = str_replace(["\n", "\r", "|"], ['', '', ''], (string)$value);
+        $dataString .= " | {$key}={$sanitizedValue}";
     }
 
     // Final log message format

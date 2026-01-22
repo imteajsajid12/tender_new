@@ -25,15 +25,15 @@
 
     .log-entry {
         /* font-family: 'Courier New', monospace; */
-        font-size: 11px;
-        padding: 6px 10px;
-        margin-bottom: 3px;
-        border-radius: 3px;
+        font-size: 12px;
+        padding: 8px 12px;
+        margin-bottom: 4px;
+        border-radius: 4px;
         white-space: pre-wrap;
         word-break: break-word;
-        line-height: 1.4;
+        line-height: 1.6;
         color: #000000;
-        font-weight: 40px;
+        font-weight: 400;
     }
 
     /* Success - Green (login success with success=true) */
@@ -68,11 +68,37 @@
 
     .log-number {
         display: inline-block;
-        min-width: 30px;
+        min-width: 35px;
         color: #6c757d;
         font-weight: bold;
         margin-left: 8px;
-        font-size: 10px;
+        font-size: 11px;
+    }
+
+    /* User information highlighting */
+    .user-email {
+        color: #0066cc;
+        font-weight: 600;
+    }
+
+    .user-name {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .user-id {
+        color: #6c757d;
+        font-weight: 500;
+    }
+
+    .status-success {
+        color: #28a745;
+        font-weight: 700;
+    }
+
+    .status-failed {
+        color: #dc3545;
+        font-weight: 700;
     }
 
     .log-legend {
@@ -160,7 +186,7 @@
                     <div class="log-legend">
                         <div class="legend-item">
                             <div class="legend-color legend-success"></div>
-                            <span>הצלחה (success=true)</span>
+                            <span>הצלחה (✓ SUCCESS / LOGIN_SUCCESS)</span>
                         </div>
                         <div class="legend-item">
                             <div class="legend-color legend-warn"></div>
@@ -168,7 +194,7 @@
                         </div>
                         <div class="legend-item">
                             <div class="legend-color legend-error"></div>
-                            <span>כישלון (success=false)</span>
+                            <span>כישלון (✗ FAILED)</span>
                         </div>
                         <div class="legend-item">
                             <div class="legend-color legend-info"></div>
@@ -200,9 +226,53 @@
                                     elseif (str_contains($entry, '| INFO')) {
                                         $logClass = 'log-info';
                                     }
+
+                                    // Parse and enhance user information display
+                                    $displayEntry = $entry;
+                                    
+                                    // Highlight email addresses
+                                    $displayEntry = preg_replace(
+                                        '/email=([^\s|]+)/',
+                                        'email=<span class="user-email">$1</span>',
+                                        $displayEntry
+                                    );
+                                    
+                                    // Highlight user names
+                                    $displayEntry = preg_replace(
+                                        '/name=([^\s|]+)/',
+                                        'name=<span class="user-name">$1</span>',
+                                        $displayEntry
+                                    );
+                                    
+                                    // Highlight user IDs
+                                    $displayEntry = preg_replace(
+                                        '/user_id=(user_\d+)/',
+                                        'user_id=<span class="user-id">$1</span>',
+                                        $displayEntry
+                                    );
+                                    
+                                    // Highlight success/failure status for better visibility
+                                    $displayEntry = preg_replace(
+                                        '/success=true/',
+                                        'success=<span class="status-success">✓ SUCCESS</span>',
+                                        $displayEntry
+                                    );
+                                    
+                                    $displayEntry = preg_replace(
+                                        '/success=false/',
+                                        'success=<span class="status-failed">✗ FAILED</span>',
+                                        $displayEntry
+                                    );
+                                    
+                                    // Highlight LOGIN_SUCCESS for completed logins
+                                    $displayEntry = preg_replace(
+                                        '/\| (LOGIN_SUCCESS\s+)/',
+                                        '| <span class="status-success">$1</span>',
+                                        $displayEntry
+                                    );
                                 @endphp
                                 <div class="log-entry {{ $logClass }}">
-                                    <span class="log-number">{{ $index + 1 }}.</span>{{ $entry }}
+                                    <span class="log-number">{{ $index + 1 }}.</span>{!! $displayEntry !!}
                                 </div>
                             @endforeach
                         </div>

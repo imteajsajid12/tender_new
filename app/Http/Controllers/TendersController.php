@@ -2286,7 +2286,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                     $authUser = auth()->user();
                     $decisionType = str_contains($view, 'approve') ? 'APPROVED' : 'REJECTED';
                     security_log('INFO', 'APP_DECISION', [
-                        'user' => 'user_' . ($authUser->id ?? 'unknown'),
+                        'user' => $authUser, // Pass user object for better logging
                         'ip' => $request->ip(),
                         'app_id' => $request->decisionId,
                         'decision' => $decisionType,
@@ -2973,8 +2973,9 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             return 'error' . $fileID;
 
         // Security log for file rejection
+        $authUser = auth()->user();
         security_log('INFO', 'FILE_REJECTED', [
-            'user' => 'user_' . ($user->id ?? 'unknown'),
+            'user' => $authUser, // Pass user object for better logging
             'ip' => request()->ip(),
             'app_id' => $appid,
             'file_id' => $fileID,
@@ -3355,7 +3356,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 // Security log for file approval
                 $authUser = auth()->user();
                 security_log('INFO', 'FILE_APPROVED', [
-                    'user' => 'user_' . ($authUser->id ?? 'unknown'),
+                    'user' => $authUser, // Pass user object for better logging
                     'ip' => $request->ip(),
                     'app_id' => $request->appid,
                     'file_id' => $file->id,
@@ -3398,7 +3399,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         $action = $request->input('action', 'view');
 
         security_log('INFO', 'DOWNLOAD_FILE', [
-            'user' => 'user_' . ($authUser->id ?? 'guest'),
+            'user' => $authUser, // Pass user object for better logging (handles null automatically)
             'ip' => $request->ip(),
             'file' => $fileName,
             'app_id' => $appId,
@@ -3445,7 +3446,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
 
         // Security log for file download
         security_log('INFO', 'DOWNLOAD_FILE', [
-            'user' => 'user_' . ($authUser->id ?? 'guest'),
+            'user' => $authUser, // Pass user object for better logging (handles null automatically)
             'ip' => $request->ip(),
             'file' => $fileName,
             'path' => $filePath

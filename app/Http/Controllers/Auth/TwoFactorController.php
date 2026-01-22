@@ -134,7 +134,7 @@ class TwoFactorController extends Controller
 
             // Log failed 2FA attempt
             security_log('WARN', '2FA_VERIFY', [
-                'user' => "user_{$userId}",
+                'user' => $user, // Pass user object for better logging
                 'ip' => $request->ip(),
                 'success' => 'false',
                 'reason' => 'INVALID_OTP',
@@ -155,7 +155,7 @@ class TwoFactorController extends Controller
 
         // Log successful login after 2FA
         security_log('INFO', 'LOGIN_SUCCESS', [
-            'user' => "user_{$userId}",
+            'user' => $user, // Pass user object for better logging
             'ip' => $request->ip(),
             'success' => 'true',
             'method' => '2FA_VERIFIED',
@@ -241,8 +241,9 @@ class TwoFactorController extends Controller
 
         // Log 2FA cancellation
         if ($userId) {
+            $user = User::find($userId);
             security_log('INFO', '2FA_CANCELLED', [
-                'user' => "user_{$userId}",
+                'user' => $user ?: $userId, // Pass user object if available
                 'ip' => $request->ip(),
             ]);
         }

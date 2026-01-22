@@ -87,7 +87,7 @@ class LoginController extends Controller
         if (config('twofactor.enabled', true) && !TwoFactorController::shouldBypass2FA($request, $user)) {
             // Log successful credential verification (2FA pending)
             security_log('INFO', 'LOGIN_ATTEMPT', [
-                'user' => "user_{$user->id}",
+                'user' => $user, // Pass user object for better logging
                 'ip' => $request->ip(),
                 'success' => 'true',
                 'status' => '2FA_PENDING',
@@ -131,7 +131,7 @@ class LoginController extends Controller
 
         // Log successful login (2FA bypassed)
         security_log('INFO', 'LOGIN_SUCCESS', [
-            'user' => "user_{$user->id}",
+            'user' => $user, // Pass user object for better logging
             'ip' => $request->ip(),
             'success' => 'true',
             'method' => '2FA_BYPASSED',
@@ -153,9 +153,11 @@ class LoginController extends Controller
      */
     protected function sendFailedLoginResponse(Request $request)
     {
-        // Log failed login attempt
+        $email = $request->input($this->username(), 'unknown');
+        
+        // Log failed login attempt with email
         security_log('WARN', 'LOGIN_ATTEMPT', [
-            'user' => $this->sanitizeEmail($request->input($this->username(), 'unknown')),
+            'email' => $this->sanitizeEmail($email),
             'ip' => $request->ip(),
             'success' => 'false',
             'reason' => 'INVALID_CREDENTIALS',
@@ -188,13 +190,14 @@ class LoginController extends Controller
     {
         // Get user info before logout for logging
         $user = Auth::user();
-        $userId = $user ? $user->id : 'unknown';
 
         // Log logout action
-        security_log('INFO', 'LOGOUT', [
-            'user' => "user_{$userId}",
-            'ip' => $request->ip(),
-        ]);
+        if ($user) {
+            security_log('INFO', 'LOGOUT', [
+                'user' => $user, // Pass user object for better logging
+                'ip' => $request->ip(),
+            ]);
+        }
 
         // Clear 2FA session data
         session()->forget([

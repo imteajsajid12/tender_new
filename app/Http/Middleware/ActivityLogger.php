@@ -259,14 +259,13 @@ class ActivityLogger
         }
 
         $user = Auth::user();
-        $username = $user ? ($user->id ?? 'unknown') : 'guest';
         $ip = $request->ip();
 
         // Try to determine the file name
         $fileName = $this->extractFileName($request, $response);
 
         $data = [
-            'user' => "user_{$username}",
+            'user' => $user, // Pass user object for better logging (handles null automatically)
             'ip' => $ip,
             'file' => $fileName,
         ];
@@ -285,7 +284,6 @@ class ActivityLogger
         }
 
         $adminUser = Auth::user();
-        $adminUsername = $adminUser ? ($adminUser->id ?? 'unknown') : 'unknown';
         $ip = $request->ip();
 
         // Get target user ID from route or request
@@ -300,7 +298,7 @@ class ActivityLogger
         }
 
         $data = [
-            'user' => "admin_{$adminUsername}",
+            'user' => $adminUser, // Pass user object for better logging (handles null automatically)
             'ip' => $ip,
             'target' => "user_{$targetUserId}",
         ];
