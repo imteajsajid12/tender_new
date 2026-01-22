@@ -6,6 +6,7 @@ use App\Http\Controllers\TendersController;
 use App\Mail\SendMailable;
 use App\Models\AppDecisions;
 use App\Models\Tender;
+use App\Services\EncryptionService;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 //use PDF;
 //use DB;
@@ -710,6 +711,13 @@ class Forms extends Model
 	public static function insert_app($insert_data = array())
 	{
 		if (!empty($insert_data)) {
+			// Encrypt email field before inserting
+			$encryptionService = app(EncryptionService::class);
+			if (isset($insert_data['email'])) {
+				$insert_data['email'] = $encryptionService->encrypt($insert_data['email']);
+				$insert_data['encryption_key_slot'] = $encryptionService->getCurrentKeySlot();
+			}
+
 			$id = DB::table('applications')->insertGetId(
 				$insert_data
 			);
@@ -731,6 +739,32 @@ class Forms extends Model
 	{
 		if (isset($file_data) && !empty($file_data)) {
 			try {
+				// Encrypt url and file_name fields before inserting
+				$encryptionService = app(EncryptionService::class);
+
+				// Handle both single record and array of records
+				$isMultiple = isset($file_data[0]) && is_array($file_data[0]);
+
+				if ($isMultiple) {
+					foreach ($file_data as &$record) {
+						if (isset($record['url'])) {
+							$record['url'] = $encryptionService->encrypt($record['url']);
+						}
+						if (isset($record['file_name'])) {
+							$record['file_name'] = $encryptionService->encrypt($record['file_name']);
+						}
+						$record['encryption_key_slot'] = $encryptionService->getCurrentKeySlot();
+					}
+				} else {
+					if (isset($file_data['url'])) {
+						$file_data['url'] = $encryptionService->encrypt($file_data['url']);
+					}
+					if (isset($file_data['file_name'])) {
+						$file_data['file_name'] = $encryptionService->encrypt($file_data['file_name']);
+					}
+					$file_data['encryption_key_slot'] = $encryptionService->getCurrentKeySlot();
+				}
+
 				DB::table('apps_file')->insert(
 					$file_data
 				);

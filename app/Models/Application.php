@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\Encryptable;
 
-class ApplicationFiles extends Model
+class Application extends Model
 {
     use HasFactory, Encryptable;
 
@@ -15,7 +15,7 @@ class ApplicationFiles extends Model
      *
      * @var string
      */
-    protected $table = 'apps_file';
+    protected $table = 'applications';
 
     /**
      * Indicates if the model should be timestamped.
@@ -31,14 +31,13 @@ class ApplicationFiles extends Model
      */
     protected $fillable = [
         'status',
-        'app_id',
-        'app_dec_id',
-        'url',
+        'sender',
+        'send_date',
+        'form_id',
+        'email',
         'type',
-        'file_name',
-        'input_field_name',
-        'input_field_label',
-        'is_cv',
+        'department',
+        'tenderval',
         'encryption_key_slot'
     ];
 
@@ -48,7 +47,22 @@ class ApplicationFiles extends Model
      * @var array
      */
     protected $encryptable = [
-        'url',
-        'file_name'
+        'email'
     ];
+
+    /**
+     * Get the files associated with this application.
+     */
+    public function files()
+    {
+        return $this->hasMany(ApplicationFiles::class, 'app_id', 'id');
+    }
+
+    /**
+     * Get the decision associated with this application.
+     */
+    public function decision()
+    {
+        return $this->hasOne(AppDecisions::class, 'p5_id', 'id');
+    }
 }

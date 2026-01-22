@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Request;
 //use DB;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\SendMailable;
+use App\Services\EncryptionService;
 //use PDF;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 use Carbon\Carbon;
@@ -224,18 +225,22 @@ class Applications extends Model
     public static function get_all_fileswoforms($app_id)
     {
         if ($app_id) {
-            $sql = DB::table('apps_file')
-                ->where([
-                    ['app_id', '=', $app_id],
-                ])->whereRaw(" not (file_name='form.pdf' and type='pdf')")->toSql();
-            //   echo($app_id);
-            // var_dump($sql);
-            //  exit();
             $files = DB::table('apps_file')
                 ->where([
                     ['app_id', '=', $app_id],
-                ])->whereRaw(" not (file_name='form.pdf' and type='pdf')")->get();
-            return $files;
+                ])->get();
+
+            // Decrypt file_name and filter out 'form.pdf' of type 'pdf'
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $filtered = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (!($decryptedName === 'form.pdf' && $f->type === 'pdf')) {
+                    $f->file_name = $decryptedName;
+                    $filtered[] = $f;
+                }
+            }
+            return collect($filtered);
         }
         return false;
     }
@@ -1422,9 +1427,15 @@ class Applications extends Model
             $user = auth()->user();
             $fileID = $request->fileID;
             if ($request->fileID == 'newfile') {
-                $fileID = DB::table('apps_file')->insertGetId(
-                    ['app_id' => $request->appid, 'url' => 'empty.txt', 'type' => 'newfile', 'file_name' => ' ^^מסמך אחר', 'status' => 4]
-                );
+                $encryptionService = app(EncryptionService::class);
+                $fileID = DB::table('apps_file')->insertGetId([
+                    'app_id' => $request->appid,
+                    'url' => $encryptionService->encrypt('empty.txt'),
+                    'type' => 'newfile',
+                    'file_name' => $encryptionService->encrypt(' ^^מסמך אחר'),
+                    'status' => 4,
+                    'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                ]);
             } else {
                 DB::table('apps_file')
                     ->where('id', $fileID)
@@ -2001,13 +2012,21 @@ class Applications extends Model
             // Log::error($decisions);
         }
 
-        if (file_exists($filepath)) {
+            if (file_exists($filepath)) {
             $answer_meta_name = $request->type . '_email';
             DB::table('apps_meta')->insert([
                 ['app_id' => $request->id, 'meta_name' => $answer_meta_name, 'meta_value' => $fail_name . '.pdf'],
             ]);
+            $encryptionService = app(EncryptionService::class);
             DB::table('apps_file')->insert([
-                ['app_id' => $app_id, 'url' => $fail_name . '.pdf', 'type' => 'pdf', 'file_name' => $answer_meta_name, 'status' => '1'],
+                [
+                    'app_id' => $app_id,
+                    'url' => $encryptionService->encrypt($fail_name . '.pdf'),
+                    'type' => 'pdf',
+                    'file_name' => $encryptionService->encrypt($answer_meta_name),
+                    'status' => '1',
+                    'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                ],
             ]);
             //DB::table('applications')->where('id', $app_id)->update(['status' => $status]);
             Applications::sendmail($to, $body, 'app', $filepath, 'משאבי אנוש - עריית רמלה', $tender->tname);
@@ -2121,8 +2140,16 @@ class Applications extends Model
             DB::table('apps_meta')->insert([
                 ['app_id' => $request->id, 'meta_name' => $answer_meta_name, 'meta_value' => $fail_name . '.pdf'],
             ]);
+            $encryptionService = app(EncryptionService::class);
             DB::table('apps_file')->insert([
-                ['app_id' => $app_id, 'url' => $fail_name . '.pdf', 'type' => 'pdf', 'file_name' => $answer_meta_name, 'status' => '1'],
+                [
+                    'app_id' => $app_id,
+                    'url' => $encryptionService->encrypt($fail_name . '.pdf'),
+                    'type' => 'pdf',
+                    'file_name' => $encryptionService->encrypt($answer_meta_name),
+                    'status' => '1',
+                    'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                ],
             ]);
             //DB::table('applications')->where('id', $app_id)->update(['status' => $status]);
             Applications::sendmail($to, $body, 'app', $filepath, 'משאבי אנוש - עריית רמלה', $tender->tname);
@@ -2318,13 +2345,19 @@ class Applications extends Model
         $files = array($filename);
 
 
-        if (file_exists($filename)) {
+            if (file_exists($filename)) {
             Mail::to($to)->send(new SendMailable($body, $files, 'app', 'מכרז למשרת ' . $tender->tname . ' - מועצה מקומית קריית ארבע חברון'));
             $meta_data[] = ['app_id' => $id, 'meta_name' => 'email_msg', 'meta_value' => 'מייל נשלח בהצלחה'];
             \App\Forms::insert_meta($meta_data);
-            $fileID = DB::table('apps_file')->insertGetId(
-                ['app_id' => $decisions->p5_id, 'url' => $fail_name . ".pdf", 'type' => 'pdf', 'file_name' => 'decisionreject0b.pdf', 'status' => 1]
-            );
+            $encryptionService = app(EncryptionService::class);
+            $fileID = DB::table('apps_file')->insertGetId([
+                'app_id' => $decisions->p5_id,
+                'url' => $encryptionService->encrypt($fail_name . ".pdf"),
+                'type' => 'pdf',
+                'file_name' => $encryptionService->encrypt('decisionreject0b.pdf'),
+                'status' => 1,
+                'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+            ]);
         } else {
             return 'error';
         }
@@ -2405,16 +2438,27 @@ class Applications extends Model
                         Mail::to($to)->send(new SendMailable($body, $files, 'app', 'מכרז למשרת ' . $tender->tname . ' - מועצה מקומית קריית ארבע חברון'));
                         $meta_data[] = ['app_id' => $id, 'meta_name' => 'email_msg', 'meta_value' => 'מייל נשלח בהצלחה'];
                         \App\Forms::insert_meta($meta_data);
+                        $encryptionService = app(EncryptionService::class);
                         if ($view == "committee") {
                             $meta_data[] = ['app_id' => $id, 'meta_name' => 'committee', 'meta_value' => $committee_meetings . "@#$#@" . $committee_meeting_data];
                             \App\Forms::insert_meta($meta_data);
-                            $fileID = DB::table('apps_file')->insertGetId(
-                                ['app_id' => $data["p5_id"], 'url' => $fail_name . ".pdf", 'type' => 'no', 'file_name' => $decision->applicant_name . '@הַזמָנָה^^הַזמָנָה', 'status' => 0]
-                            );
+                            $fileID = DB::table('apps_file')->insertGetId([
+                                'app_id' => $data["p5_id"],
+                                'url' => $encryptionService->encrypt($fail_name . ".pdf"),
+                                'type' => 'no',
+                                'file_name' => $encryptionService->encrypt($decision->applicant_name . '@הַזמָנָה^^הַזמָנָה'),
+                                'status' => 0,
+                                'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                            ]);
                         } else {
-                            $fileID = DB::table('apps_file')->insertGetId(
-                                ['app_id' => $data["p5_id"], 'url' => $fail_name . ".pdf", 'type' => 'pdf', 'file_name' => 'decision' . $view . '.pdf', 'status' => 1]
-                            );
+                            $fileID = DB::table('apps_file')->insertGetId([
+                                'app_id' => $data["p5_id"],
+                                'url' => $encryptionService->encrypt($fail_name . ".pdf"),
+                                'type' => 'pdf',
+                                'file_name' => $encryptionService->encrypt('decision' . $view . '.pdf'),
+                                'status' => 1,
+                                'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                            ]);
                         }
 
                         DB::table('apps_logs')->insert([['app_id' => $id, 'description' => $data["logText"]]]);

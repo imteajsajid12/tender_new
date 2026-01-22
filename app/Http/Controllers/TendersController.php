@@ -21,6 +21,7 @@ use App\Models\TenderDecision;
 use App\Models\TenderFiles;
 use App\Models\TendersStat;
 use App\Models\User;
+use App\Services\EncryptionService;
 use Barryvdh\Snappy\Facades\SnappyPdf as PDF;
 
 use Dompdf\Dompdf;
@@ -248,8 +249,14 @@ class TendersController extends Controller
 
     public static $acceptable = array('application/pdf', 'image/jpeg', 'image/jpg', 'image/gif', 'image/png', 'image/jpe', 'image/tiff', 'image/bmp', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'application/octet-stream', '.doc', '.docx');
 
-    public function __construct()
+    /**
+     * @var EncryptionService
+     */
+    protected $encryptionService;
+
+    public function __construct(EncryptionService $encryptionService)
     {
+        $this->encryptionService = $encryptionService;
         //	$this->middleware('auth');
     }
 
@@ -811,27 +818,20 @@ tender_number like '%" . $request->search . "%'"); //TODO ESCAPE!!); //TODO ESCA
             'filter' => $filter,
             'filter1' => '',
             'templates' => Template::get(),
-            'count_active' => $count_active,
-            'count_inactive' => $count_inactive,
-            'count_all' => $count_all,
-            'count_stopped' => $count_stopped,
-            'page_num' => $pagenum,
-            'total_pages' => $countPages,
-            //'submenu' => Applications::app_submenu_html( ),
-            'pageTitle' => 'מכרזים',
+            'count_active' => $count_active ?? 0,
+            'count_inactive' => $count_inactive ?? 0,
+            'count_all' => $count_all ?? 0,
+            'count_stopped' => $count_stopped ?? 0,
+            'page_num' => $pagenum ?? 1,
+            'total_pages' => $countPages ?? 1,
             'upload_admin_file' => isset($meta_value->meta_value) ? $meta_value->meta_value : '',
-            'is_contain_file' => $is_contain_file,
+            'is_contain_file' => $is_contain_file ?? [],
             'tenders' => $tenders,
             'tenderid' => $filter,
             'tender_status' => self::$tender_status,
             'users' => $users
         ]);
-    }
 
-    public function upload_file(Request $request, $applicationid)
-    {
-        \App\Applications::upload_file($request);
-        return redirect()->back();
     }
 
     public function upload_test_file(Request $request, $applicationId)
@@ -866,14 +866,15 @@ tender_number like '%" . $request->search . "%'"); //TODO ESCAPE!!); //TODO ESCA
             // Move file to upload directory
             $file->move(public_path('upload/admin/'), $filename);
 
-            // Save file data to database
+            // Save file data to database with encryption
             $file_data = [
                 'app_dec_id' => $applicationId,
                 'app_id' => 0, // For test files uploaded by admin
-                'url' => $filename,
+                'url' => $this->encryptionService->encrypt($filename),
                 'type' => 'mandatory_test',
-                'file_name' => 'מבחן_חובה_' . $file->getClientOriginalName()."^^מבחן_חובה",
-                'status' => '1'
+                'file_name' => $this->encryptionService->encrypt('מבחן_חובה_' . $file->getClientOriginalName()."^^מבחן_חובה"),
+                'status' => '1',
+                'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
             ];
 
             DB::table('apps_file')->insert($file_data);
@@ -2277,9 +2278,14 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                     Mail::to($to)->send(new SendMailable($body, ($files), $view, 'מכרז למשרת ' . $data['tendername'] . ' - מועצה מקומית קריית ארבע חברון'));
                     $meta_data[] = ['app_id' => $request->decisionId, 'meta_name' => 'email_msg', 'meta_value' => 'מייל נשלח בהצלחה'];
                     \App\Forms::insert_meta($meta_data);
-                    $fileID = DB::table('apps_file')->insertGetId(
-                        ['app_id' => $data["p5_id"], 'url' => $fail_name . ".pdf", 'type' => 'pdf', 'file_name' => 'decision' . $view . '.pdf', 'status' => 1],
-                    );
+                    $fileID = DB::table('apps_file')->insertGetId([
+                        'app_id' => $data["p5_id"],
+                        'url' => $this->encryptionService->encrypt($fail_name . ".pdf"),
+                        'type' => 'pdf',
+                        'file_name' => $this->encryptionService->encrypt('decision' . $view . '.pdf'),
+                        'status' => 1,
+                        'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+                    ]);
                     DB::table('apps_logs')->insert([['app_id' => $request->decisionId, 'description' => $data["logText"]]]);
 
                     // Security log for application decision
@@ -2381,10 +2387,19 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 }
             }
 
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $decfile = collect();
             if (isset($p1) && !empty($p1)) {
-                $decfile = DB::table('apps_file')->whereRaw("file_name like 'decision%.pdf' and  app_id=" . $p1)->get();
+                $files = DB::table('apps_file')->where('app_id', $p1)->get();
             } else {
-                $decfile = DB::table('apps_file')->whereRaw("file_name like 'decision%.pdf' and  app_id=" . $p5)->get();
+                $files = DB::table('apps_file')->where('app_id', $p5)->get();
+            }
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (str_starts_with($decryptedName, 'decision')) {
+                    $f->file_name = $decryptedName;
+                    $decfile->push($f);
+                }
             }
             //echo($decs->status);
             $application = (object)
@@ -2443,9 +2458,18 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
 
                 }
             }
-            $sql = 'select count(*)  as cc_notapproved from apps_file where app_id in (' . $p1 . ',' . $p2 . ',' . $p3 . ',' . $p5 . ') and file_name<>\'form.pdf\'  and status not in (1,4)';
-            //
-            $ifnotapprovedfiles = DB::select($sql);
+            // Count files for the group of app ids where file_name != 'form.pdf' and status not in (1,4)
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $appIds = array_filter([$p1, $p2, $p3, $p5]);
+            $files = DB::table('apps_file')->whereIn('app_id', $appIds)->whereNotIn('status', [1, 4])->get();
+            $cc_notapproved = 0;
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if ($decryptedName !== 'form.pdf') {
+                    $cc_notapproved++;
+                }
+            }
+            $ifnotapprovedfiles = [(object)['cc_notapproved' => $cc_notapproved]];
             // echo(json_encode($ifnotapprovedfiles));
             //echo(gettype($ifnotapprovedfiles));
             //echo(count($ifnotapprovedfiles));
@@ -2671,8 +2695,19 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $updateData['decision_3_b'] = 0;
             $updateData['decision_4'] = 0;
             $updateData['decision_committee'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionapprove0a.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionapprove0a.pdf') and app_id=" . $appId)->delete();
+            // Remove any decision files matching the plaintext names by decrypting stored names
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionapprove0a.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Interview A') {
@@ -2684,8 +2719,18 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $updateData['decision_3_b'] = 0;
             $updateData['decision_4'] = 0;
             $updateData['decision_committee'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionapprove0.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionapprove0.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionapprove0.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Interview B') {
@@ -2697,8 +2742,18 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $updateData['decision_3_b'] = 0;
             $updateData['decision_4'] = 0;
             $updateData['decision_committee'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionapprove0b.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionapprove0b.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionapprove0b.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Committee') {
@@ -2710,54 +2765,134 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         }
         if ($request->app_status == 'Rejected due to conditions') {
             $updateData['decision_2'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionreject1.pdf', 'decisionreject0a.pdf', 'decisionreject0c.pdf', 'decisionreject0d.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionreject1.pdf', 'decisionreject0a.pdf', 'decisionreject0c.pdf', 'decisionreject0d.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionreject1.pdf', 'decisionreject0a.pdf', 'decisionreject0c.pdf', 'decisionreject0d.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Accepted') {
             $updateData['decision_3'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Accepted A') {
             $updateData['decision_3_a'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionapprove1.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionapprove1.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionapprove1.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Accepted B') {
             $updateData['decision_3_b'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionapprove2.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionapprove2.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionapprove2.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Rejected') {
             $updateData['decision_4'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionreject2.pdf', 'reject0a.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionreject2.pdf', 'reject0a.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionreject2.pdf', 'reject0a.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'Rejected0') {
             $updateData['decision_4'] = 0;
             $updateData['decision_2'] = 0;
             $updateData['rejected'] = 0;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionreject0.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionreject0.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionreject0.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'FinalReject') {
             $updateData['decision_4'] = 0;
             $updateData['rejected_status'] = NULL;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionreject0_fr.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionreject0_fr.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionreject0_fr.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
         if ($request->app_status == 'FailedToJoinCommittee') {
             $updateData['decision_4'] = 0;
             $updateData['rejected_status'] = NULL;
-            if (DB::table('apps_file')->whereRaw("file_name in ('decisionreject0_fd.pdf') and app_id=" . $appId)->exists()) {
-                DB::table('apps_file')->whereRaw("file_name in ('decisionreject0_fd.pdf') and app_id=" . $appId)->delete();
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $targetNames = ['decisionreject0_fd.pdf'];
+            $files = DB::table('apps_file')->where('app_id', $appId)->get();
+            $idsToDelete = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (in_array($decryptedName, $targetNames)) {
+                    $idsToDelete[] = $f->id;
+                }
+            }
+            if (!empty($idsToDelete)) {
+                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
             }
         }
 
@@ -2769,8 +2904,23 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
     public function stepBackSecond(Request $request)
     {
         $appId = $request->app_id;
-        if (DB::table('apps_file')->whereRaw("file_name in ('decisionapprove1.pdf', 'decisionapprove2.pdf', 'decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf', 'decisionreject1.pdf', 'decisionreject2.pdf', 'decisionreject0d.pdf', 'decisionreject0_fd.pdf', 'decisionreject0_fr.pdf', 'decisionreject0a.pdf') and app_id=" . $appId)->exists()) {
-            DB::table('apps_file')->whereRaw("file_name in ('decisionapprove1.pdf', 'decisionapprove2.pdf', 'decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf', 'decisionreject1.pdf', 'decisionreject2.pdf', 'decisionreject0d.pdf', 'decisionreject0_fd.pdf', 'decisionreject0_fr.pdf', 'decisionreject0a.pdf') and app_id=" . $appId)->delete();
+        // Find and delete any decision-related files by decrypting file_name and matching plaintext names
+        $encryptionService = app(\App\Services\EncryptionService::class);
+        $targetNames = [
+            'decisionapprove1.pdf', 'decisionapprove2.pdf', 'decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf',
+            'decisionreject1.pdf', 'decisionreject2.pdf', 'decisionreject0d.pdf', 'decisionreject0_fd.pdf', 'decisionreject0_fr.pdf', 'decisionreject0a.pdf'
+        ];
+        $files = DB::table('apps_file')->where('app_id', $appId)->get();
+        $idsToDelete = [];
+        foreach ($files as $f) {
+            $decryptedName = $encryptionService->decrypt($f->file_name);
+            // also handle wildcard decision*.pdf by checking prefix
+            if (in_array($decryptedName, $targetNames) || str_starts_with($decryptedName, 'decision')) {
+                $idsToDelete[] = $f->id;
+            }
+        }
+        if (!empty($idsToDelete)) {
+            DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
         }
 
         $updateData = [
@@ -2837,18 +2987,23 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
     public function get_all_fileswoforms($app_id)
     {
         if ($app_id) {
-            $sql = DB::table('apps_file')
-                ->where(column: [
-                    ['app_id', '=', $app_id],
-                ])->whereRaw(" not ((file_name='form.pdf' or file_name like 'decision%.pdf' ) and type='pdf')")->toSql();
-            //   echo($app_id);
-            //var_dump($sql);
-            // exit();
             $files = DB::table('apps_file')
                 ->where([
                     ['app_id', '=', $app_id],
-                ])->whereRaw(" not ((file_name='form.pdf' or file_name like 'decision%.pdf' )and type='pdf')")->get();
-            return $files;
+                ])->get();
+
+            // Decrypt file_name and filter out 'form.pdf' and any decision*.pdf of type 'pdf'
+            $encryptionService = app(\App\Services\EncryptionService::class);
+            $filtered = [];
+            foreach ($files as $f) {
+                $decryptedName = $encryptionService->decrypt($f->file_name);
+                if (!($decryptedName === 'form.pdf' && $f->type === 'pdf') && !str_starts_with($decryptedName, 'decision')) {
+                    // replace file_name with decrypted value for callers expecting plaintext
+                    $f->file_name = $decryptedName;
+                    $filtered[] = $f;
+                }
+            }
+            return collect($filtered);
         }
         return false;
     }
@@ -2958,9 +3113,14 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         //$decs=DB::table('app_decisions')->whereRaw(`p1_id=${$appid} or p2_id=${$appid} or p3_id=${appid}`)->first();
 
         if ($fileID == 'newfile') {
-            $fileID = DB::table('apps_file')->insertGetId(
-                ['app_id' => $appid, 'url' => 'empty.txt', 'type' => 'newfile', 'file_name' => ' ^^מסמך אחר', 'status' => 4],
-            );
+            $fileID = DB::table('apps_file')->insertGetId([
+                'app_id' => $appid,
+                'url' => $this->encryptionService->encrypt('empty.txt'),
+                'type' => 'newfile',
+                'file_name' => $this->encryptionService->encrypt(' ^^מסמך אחר'),
+                'status' => 4,
+                'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+            ]);
         } else {
         }
 
