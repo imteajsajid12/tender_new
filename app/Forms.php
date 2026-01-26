@@ -1351,7 +1351,9 @@ class Forms extends Model
 			//            $meta_data[]  =   ['app_id' => $appID, 'meta_name' => 'identity_number', 'meta_value' => $metaJson['identity_number']];
 			// Send email with attachments for page5 forms
 			if ($form->type === 'page5') {
-				\App\Applications::api_answer_mail_page5($appID);
+				Log::info('Attempting to send page5 email', ['app_id' => $appID, 'form_type' => $form->type]);
+				$emailResult = \App\Applications::api_answer_mail_page5($appID);
+				Log::info('Page5 email send result', ['app_id' => $appID, 'result' => $emailResult]);
 			}
 		}
 		self::insert_meta($meta_data);

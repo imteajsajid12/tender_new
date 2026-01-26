@@ -1292,8 +1292,15 @@ class Applications extends Model
             $tender = DB::table('tenders')->where('generated_id', '=', $app_decision->tenderval)->first();
             $tender_name = $tender ? $tender->tname : 'מכרז';
 
-            // Prepare email content
+            // Initialize encryption service for decrypting email and file URLs
+            $encryptionService = app(\App\Services\EncryptionService::class);
+
+            // Prepare email content - decrypt email if encrypted
             $to = $app->email;
+            if ($encryptionService->isEncrypted($app->email)) {
+                $to = $encryptionService->decrypt($app->email);
+            }
+
             $applicant_name = $app_decision->applicant_name ?? $app->sender;
 
             // Collect all files for this application
@@ -1301,8 +1308,17 @@ class Applications extends Model
 
             // Get the form PDF
             $form_pdf = self::get_pdf_file($app_id);
-            if ($form_pdf && file_exists(public_path('upload/' . $form_pdf->url))) {
-                $attachments[] = public_path('upload/' . $form_pdf->url);
+            if ($form_pdf) {
+                // Decrypt the URL if encrypted
+                $decrypted_url = $form_pdf->url;
+                if ($encryptionService->isEncrypted($form_pdf->url)) {
+                    $decrypted_url = $encryptionService->decrypt($form_pdf->url);
+                }
+
+                $file_path = public_path('upload/' . $decrypted_url);
+                if (file_exists($file_path)) {
+                    $attachments[] = $file_path;
+                }
             }
 
             // Get all uploaded files (excluding form PDFs)
@@ -1320,7 +1336,13 @@ class Applications extends Model
             ])->render();
             if ($uploaded_files) {
                 foreach ($uploaded_files as $file) {
-                    $file_path = public_path('upload/' . $file->url);
+                    // Decrypt the URL if encrypted
+                    $decrypted_url = $file->url;
+                    if (isset($file->url) && $encryptionService->isEncrypted($file->url)) {
+                        $decrypted_url = $encryptionService->decrypt($file->url);
+                    }
+
+                    $file_path = public_path('upload/' . $decrypted_url);
                     if (file_exists($file_path)) {
                         $attachments[] = $file_path;
                     }
@@ -1340,6 +1362,11 @@ class Applications extends Model
 
                 return 'success';
             } else {
+                \Illuminate\Support\Facades\Log::warning('Page5 mail - no attachments found', [
+                    'app_id' => $app_id,
+                    'form_pdf_exists' => isset($form_pdf),
+                    'uploaded_files_count' => $uploaded_files ? count($uploaded_files) : 0
+                ]);
                 return 'error - no files found';
             }
         } catch (\Exception $e) {
