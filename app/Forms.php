@@ -1039,8 +1039,11 @@ class Forms extends Model
 		//$pdfpath = 'C:/Users/Owner/Automas/laravel/httpdocs/public/upload/' . $pdf_name . '.pdf';
 
 		try {
+			// Create sanitized request data for PDF generation (remove file objects)
+			$sanitizedRequestData = $request->except(['file', 'educ_image', 'diplopma_high_image', 'diploma_type', '_token']);
+
 			$pdf = PDF::loadView('pdf.form-new', [
-				'request' => $request
+				'request' => (object) $sanitizedRequestData
 				//'app_dec' => $app_dec
 			])->setPaper('A4')->setOrientation('portrait');
 			// Disable JavaScript to speed up PDF generation (prevents timeout)
@@ -1057,7 +1060,9 @@ class Forms extends Model
 			$pdf->save($pdfpath);
 			Log::info('PDF form-new generated: ' . $pdfpath);
 		} catch (\Throwable $th) {
-			Log::error('pdf error: ' . $th->getMessage());
+			Log::error('pdf error: ' . $th->getMessage(), [
+				'trace' => $th->getTraceAsString()
+			]);
 			// Continue without PDF - don't block form submission
 		}
 
@@ -1098,7 +1103,9 @@ class Forms extends Model
 			$pdfold->save($pdfpathold);
 			Log::info('PDF form-old generated: ' . $pdfpathold);
 		} catch (\Throwable $th) {
-			Log::error('pdfold error: ' . $th->getMessage());
+			Log::error('pdfold error: ' . $th->getMessage(), [
+				'trace' => $th->getTraceAsString()
+			]);
 			// Continue without PDF - don't block form submission
 		}
 

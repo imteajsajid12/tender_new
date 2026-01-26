@@ -173,14 +173,39 @@ class Applications extends Model
     public static function get_file_byAppID($app_id)
     {
         if ($app_id && !empty($app_id)) {
+            // Define the order for file sections to ensure consistent protocol ordering
+            $sectionOrder = [
+                'cv' => 1,
+                'education' => 2,
+                'professional_experience' => 3,
+                'management_experience' => 4,
+                'professional_courses' => 5,
+                'mandatory_test' => 6,
+                'additional_requirements' => 7,
+                'additional_files' => 8
+            ];
+
             $files = DB::table('apps_file')
                 ->where([
                     ['app_id', '=', $app_id],
                     ['type', '!=', 'pdf'],
                     ['type', '!=', 'erur']
                 ])
+                ->orderBy('id', 'ASC')  // Order by ID to maintain insertion order
                 ->get();
-            return $files;
+
+            // Sort files by qualification section order
+            $sortedFiles = $files->sort(function ($a, $b) use ($sectionOrder) {
+                $orderA = $sectionOrder[$a->input_field_name] ?? 999;
+                $orderB = $sectionOrder[$b->input_field_name] ?? 999;
+
+                if ($orderA === $orderB) {
+                    return $a->id <=> $b->id;  // Maintain insertion order within same section
+                }
+                return $orderA <=> $orderB;
+            })->values();
+
+            return $sortedFiles;
         }
         return false;
     }
@@ -1322,6 +1347,28 @@ class Applications extends Model
             $to = $app->email;
             if ($encryptionService->isEncrypted($app->email)) {
                 $to = $encryptionService->decrypt($app->email);
+            }
+
+            // Additional validation: if email still appears encrypted, try direct decryption
+            if ($to && $encryptionService->isEncrypted($to)) {
+                try {
+                    $to = $encryptionService->decrypt($to);
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('Failed to decrypt email in api_answer_mail_page5', [
+                        'app_id' => $app_id,
+                        'error' => $e->getMessage()
+                    ]);
+                    return 'error';
+                }
+            }
+
+            // Final validation: ensure email is not encrypted before sending
+            if (!$to || $encryptionService->isEncrypted($to) || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                \Illuminate\Support\Facades\Log::error('Invalid or encrypted email in api_answer_mail_page5', [
+                    'app_id' => $app_id,
+                    'email' => $to
+                ]);
+                return 'error';
             }
 
             $applicant_name = $app_decision->applicant_name ?? $app->sender;

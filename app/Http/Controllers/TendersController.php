@@ -2999,10 +2999,24 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
     public function get_all_fileswoforms($app_id)
     {
         if ($app_id) {
+            // Define the order for file sections to ensure consistent protocol ordering
+            $sectionOrder = [
+                'cv' => 1,
+                'education' => 2,
+                'professional_experience' => 3,
+                'management_experience' => 4,
+                'professional_courses' => 5,
+                'mandatory_test' => 6,
+                'additional_requirements' => 7,
+                'additional_files' => 8
+            ];
+
             $files = DB::table('apps_file')
                 ->where([
                     ['app_id', '=', $app_id],
-                ])->get();
+                ])
+                ->orderBy('id', 'ASC')  // Order by ID to maintain insertion order
+                ->get();
 
             // Decrypt file_name and filter out 'form.pdf' and any decision*.pdf of type 'pdf'
             $encryptionService = app(\App\Services\EncryptionService::class);
@@ -3015,7 +3029,19 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                     $filtered[] = $f;
                 }
             }
-            return collect($filtered);
+
+            // Sort filtered files by qualification section order
+            $sortedFiles = collect($filtered)->sort(function ($a, $b) use ($sectionOrder) {
+                $orderA = $sectionOrder[$a->input_field_name] ?? 999;
+                $orderB = $sectionOrder[$b->input_field_name] ?? 999;
+
+                if ($orderA === $orderB) {
+                    return $a->id <=> $b->id;  // Maintain insertion order within same section
+                }
+                return $orderA <=> $orderB;
+            })->values();
+
+            return $sortedFiles;
         }
         return false;
     }
@@ -3061,46 +3087,95 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
     }
     function customMailFileSend(Request $request, $did)
     {
-        $decs = DB::table('app_decisions')->select()->where('id', '=', $did)->first();
-
-        $files = DB::table('apps_file')
-            ->where([
-                ['app_id', '=', $decs->p5_id],
-            ])->get();
-        Log::debug(count($files));
-        $filespath = public_path('upload');
-        $marge_file = Str::replace(' ', '_', $decs->applicant_name) . "@{$did}_all_files.pdf";
-        $pdf = new PdfMerge();
-        foreach ($files as $key => $file) {
-            if (file_exists($filespath . '/' . $file->url)) {
-                if (strpos($file->url, 'docx') || strpos($file->url, 'doc') !== false) {
-                    //header ("Content-type: application/vnd.ms-word");
-                    //header ("Content-Disposition: attachment;Filename=document_name.doc");
-                } else {
-                    $pdf->add($filespath . '/' . $file->url);
-                }
-            }
-            if (file_exists($filespath . '/admin/' . $file->url)) {
-                Log::debug('admin:' . $file->url);
-                if (strpos($file->url, 'docx') || strpos($file->url, 'doc') !== false) {
-                    //header ("Content-type: application/vnd.ms-word");
-                    //header ("Content-Disposition: attachment;Filename=document_name.doc");
-                } else {
-                    $pdf->add($filespath . '/admin/' . $file->url);
-                }
-            }
-        }
-        $pdf->merge(storage_path('app/public') . '/' . $marge_file);
-        // return response()->download(storage_path('app/public') . '/' . $marge_file)->deleteFileAfterSend(true);
-
-        Mail::to($request->email)->send((new CustomMail($decs->applicant_name, $did, $decs->tenderval, storage_path('app/public') . '/' . $marge_file)));
-
         try {
+            $decs = DB::table('app_decisions')->select()->where('id', '=', $did)->first();
+
+            if (!$decs) {
+                Log::error('Application decision not found', ['did' => $did]);
+                return response()->json(['error' => 'Application not found'], 404);
+            }
+
+            $files = DB::table('apps_file')
+                ->where([
+                    ['app_id', '=', $decs->p5_id],
+                ])->get();
+
+            Log::debug('Total files found: ' . count($files));
+
+            // Initialize encryption service for decrypting file URLs
+            $encryptionService = app(\App\Services\EncryptionService::class);
+
+            $filespath = public_path('upload');
+            $marge_file = Str::replace(' ', '_', $decs->applicant_name) . "@{$did}_all_files.pdf";
+            $pdf = new PdfMerge();
+            $filesAdded = 0;
+
+            foreach ($files as $key => $file) {
+                // Decrypt the URL if encrypted
+                $decryptedUrl = $file->url;
+                if ($encryptionService->isEncrypted($file->url)) {
+                    $decryptedUrl = $encryptionService->decrypt($file->url);
+                }
+
+                // Skip non-PDF files (docx, doc, etc.)
+                if (strpos($decryptedUrl, 'docx') !== false || strpos($decryptedUrl, 'doc') !== false) {
+                    Log::debug('Skipping non-PDF file: ' . $decryptedUrl);
+                    continue;
+                }
+
+                // Try main upload folder
+                if (file_exists($filespath . '/' . $decryptedUrl)) {
+                    $pdf->add($filespath . '/' . $decryptedUrl);
+                    $filesAdded++;
+                    Log::debug('Added file from upload: ' . $decryptedUrl);
+                }
+                // Try admin folder
+                elseif (file_exists($filespath . '/admin/' . $decryptedUrl)) {
+                    $pdf->add($filespath . '/admin/' . $decryptedUrl);
+                    $filesAdded++;
+                    Log::debug('Added file from admin: ' . $decryptedUrl);
+                } else {
+                    Log::warning('File not found in either location', [
+                        'url' => $decryptedUrl,
+                        'main_path' => $filespath . '/' . $decryptedUrl,
+                        'admin_path' => $filespath . '/admin/' . $decryptedUrl
+                    ]);
+                }
+            }
+
+            // Check if at least one file was added before merging
+            if ($filesAdded === 0) {
+                Log::error('No valid PDF files found to merge', [
+                    'did' => $did,
+                    'p5_id' => $decs->p5_id,
+                    'total_files' => count($files)
+                ]);
+                return response()->json(['error' => 'No valid PDF files found to send'], 400);
+            }
+
+            Log::info('Merging ' . $filesAdded . ' files');
+            $pdf->merge(storage_path('app/public') . '/' . $marge_file);
+
+            // Send email
+            Mail::to($request->email)->send((new CustomMail($decs->applicant_name, $did, $decs->tenderval, storage_path('app/public') . '/' . $marge_file)));
+
+            // Cleanup merged file
             File::delete(storage_path('app/public') . '/' . $marge_file);
+
+            Log::info('Custom mail sent successfully', [
+                'did' => $did,
+                'email' => $request->email,
+                'files_merged' => $filesAdded
+            ]);
+
             return "success";
         } catch (\Throwable $th) {
-            //throw $th;
-            return "error";
+            Log::error('Custom mail send failed', [
+                'did' => $did,
+                'error' => $th->getMessage(),
+                'trace' => $th->getTraceAsString()
+            ]);
+            return response()->json(['error' => 'Failed to send email: ' . $th->getMessage()], 500);
         }
     }
 
