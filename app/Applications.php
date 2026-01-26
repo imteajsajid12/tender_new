@@ -200,13 +200,36 @@ class Applications extends Model
     public static function getformfile($app_id)
     {
         if ($app_id) {
+            // Get all PDF files for this application
             $files = DB::table('apps_file')
                 ->where([
                     ['app_id', '=', $app_id],
                     ['type', '=', 'pdf'],
-                    ['file_name', '=', 'form.pdf'],
                 ])->get();
-            return $files;
+
+            // Initialize encryption service
+            $encryptionService = app(\App\Services\EncryptionService::class);
+
+            // Filter for form.pdf files after decrypting file_name
+            $formFiles = [];
+            foreach ($files as $file) {
+                $decryptedName = $file->file_name;
+                if ($encryptionService->isEncrypted($file->file_name)) {
+                    $decryptedName = $encryptionService->decrypt($file->file_name);
+                }
+
+                // Check if this is a form.pdf file
+                if ($decryptedName === 'form.pdf' || strpos($decryptedName, 'form.pdf') !== false) {
+                    // Decrypt URL as well for proper file access
+                    if ($encryptionService->isEncrypted($file->url)) {
+                        $file->url = $encryptionService->decrypt($file->url);
+                    }
+                    $file->file_name = $decryptedName; // Store decrypted name
+                    $formFiles[] = $file;
+                }
+            }
+
+            return collect($formFiles);
         }
         return false;
     }
