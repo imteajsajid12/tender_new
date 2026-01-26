@@ -185,8 +185,43 @@ function security_log(string $level, string $action, array $data = []): void
         }
     }
 
-    // Build data string with pipe separators
+    // Define consistent parameter order for logging
+    // This ensures logs always have the same format regardless of input order
+    $parameterOrder = [
+        'ip',
+        'file',
+        'app_id',
+        'action',
+        'user_id',
+        'email',
+        'name',
+        'path',
+        'target',
+        'from',
+        'to',
+        'success',
+        'status',
+        'reason',
+        'method',
+        'file_id',
+        'tender_id',
+        'template_id'
+    ];
+
+    // Build ordered data string with pipe separators
     $dataString = '';
+    
+    // First, add parameters in defined order
+    foreach ($parameterOrder as $key) {
+        if (isset($data[$key])) {
+            // Sanitize values to prevent log injection
+            $sanitizedValue = str_replace(["\n", "\r", "|"], ['', '', ''], (string)$data[$key]);
+            $dataString .= " | {$key}={$sanitizedValue}";
+            unset($data[$key]); // Remove from array to avoid duplication
+        }
+    }
+    
+    // Then, add any remaining parameters not in the predefined order
     foreach ($data as $key => $value) {
         // Sanitize values to prevent log injection
         $sanitizedValue = str_replace(["\n", "\r", "|"], ['', '', ''], (string)$value);

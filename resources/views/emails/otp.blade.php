@@ -24,8 +24,7 @@
             overflow: hidden;
         }
         .email-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #ffffff;
+            background: linear-gradient(135deg, #61cb14 0%, #408d5a 100%);
             padding: 30px 20px;
             text-align: center;
         }
@@ -55,7 +54,7 @@
         }
         .otp-container {
             background-color: #f8f9fa;
-            border: 2px dashed #667eea;
+            border: 2px dashed #55a828;
             border-radius: 8px;
             padding: 20px;
             margin: 20px 0;
@@ -70,7 +69,7 @@
         .otp-code {
             font-size: 36px;
             font-weight: bold;
-            color: #667eea;
+              color: #20972d;
             letter-spacing: 8px;
             font-family: 'Courier New', monospace;
         }
