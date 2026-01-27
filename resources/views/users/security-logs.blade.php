@@ -40,6 +40,15 @@
                                     <a href="{{ route('security-log.download', ['date' => $log['date']]) }}" class="btn btn-sm btn-outline-secondary btn-action">
                                         <i class="fa fa-download"></i> הורדה
                                     </a>
+                                    @if(auth()->user() && (auth()->user()->id === 1 || in_array('1', explode(',', auth()->user()->role ?? ''))))
+                                    <button type="button" class="btn btn-sm btn-outline-danger btn-action" onclick="confirmDeleteLog('{{ $log['date'] }}')">
+                                        <i class="fa fa-trash"></i> מחק
+                                    </button>
+                                    @else
+                                    <button type="button" disabled class="btn btn-sm btn-outline-danger btn-action btn-delete-disabled" title="נדרשת הרשאת הגדרות">
+                                        <i class="fa fa-trash"></i> מחק
+                                    </button>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -291,6 +300,11 @@
     margin-left: 8px;
     font-size: 10px;
 }
+
+.btn-delete-disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
 </style>
 
 <script>
@@ -381,5 +395,86 @@ function escapeHtml(text) {
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(text));
     return div.innerHTML;
+}
+
+/**
+ * Confirm and delete security log file
+ */
+function confirmDeleteLog(date) {
+    Swal.fire({
+        icon: 'warning',
+        title: 'האם אתה בטוח?',
+        html: `האם אתה בטוח שברצונך למחוק את יומן האבטחה לתאריך <strong>${date}</strong>?<br><br>` +
+              '<span style="color: #dc3545; font-weight: bold;">פעולה זו לא ניתנת לביטול!</span>',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'כן, מחק',
+        cancelButtonText: 'ביטול',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            deleteSecurityLogFile(date);
+        }
+    });
+}
+
+/**
+ * Delete security log via AJAX
+ */
+function deleteSecurityLogFile(date) {
+    // Show loading state
+    Swal.fire({
+        title: 'מוחק...',
+        html: 'אנא המתן',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+
+    // Get CSRF token
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    // Send DELETE request
+    fetch(`/admin/security-log/delete/${date}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'נמחק בהצלחה!',
+                text: data.message,
+                confirmButtonText: 'אישור'
+            }).then(() => {
+                // Reload the page to refresh the list
+                window.location.reload();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'שגיאה',
+                text: data.message || 'אירעה שגיאה במחיקת היומן',
+                confirmButtonText: 'אישור'
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Delete error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'שגיאה',
+            text: 'אירעה שגיאה בחיבור לשרת',
+            confirmButtonText: 'אישור'
+        });
+    });
 }
 </script>

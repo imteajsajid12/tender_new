@@ -211,6 +211,7 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 		Route::get('/', [SecurityLogController::class, 'index'])->name('index');
 		Route::get('/download', [SecurityLogController::class, 'download'])->name('download');
 		Route::get('/view/{date}', [SecurityLogController::class, 'show'])->name('show');
+		Route::delete('/delete/{date}', [SecurityLogController::class, 'delete'])->name('delete');
 	});
 
 	// Two-Factor Authentication Settings Routes

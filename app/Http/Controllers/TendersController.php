@@ -3964,6 +3964,9 @@ tender_number like '%" . $request->search . "%'"); //TODO ESCAPE!!); //TODO ESCA
 
     public function success_add_app(Request $request, $url, $failname)
     {
+        // Increase execution time for PDF generation to prevent timeout
+        set_time_limit(300); // 3 minutes
+
         Log::debug('success_add_app');
         $decision = $request->decisionId;
 

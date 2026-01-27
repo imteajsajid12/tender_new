@@ -159,6 +159,75 @@ class SecurityLogController extends Controller
     }
 
     /**
+     * Delete a security log file.
+     *
+     * Route: DELETE /admin/security-log/delete/{date}
+     *
+     * @param Request $request
+     * @param string $date
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function delete(Request $request, string $date)
+    {
+        $user = Auth::user();
+
+        // Only users with settings permission can delete logs
+        if (!$this->canDeleteSecurityLogs($user)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'אין לך הרשאה למחוק יומני אבטחה. נדרשת הרשאת הגדרות.',
+            ], 403);
+        }
+
+        // Validate date format
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'פורמט תאריך לא תקין.',
+            ], 400);
+        }
+
+        // Build file path
+        $monthFolder = substr($date, 0, 7);
+        $filePath = storage_path("logs/security/{$monthFolder}/{$date}.log");
+
+        // Check if file exists
+        if (!File::exists($filePath)) {
+            return response()->json([
+                'success' => false,
+                'message' => "קובץ יומן לתאריך {$date} לא נמצא.",
+            ], 404);
+        }
+
+        try {
+            // Delete the file
+            File::delete($filePath);
+
+            // Log the deletion
+            security_log('WARNING', 'DELETE_SECURITY_LOG', [
+                'user' => $user,
+                'ip' => $request->ip(),
+                'deleted_file' => $date,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "יומן האבטחה לתאריך {$date} נמחק בהצלחה.",
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete security log', [
+                'date' => $date,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'אירעה שגיאה במחיקת היומן.',
+            ], 500);
+        }
+    }
+
+    /**
      * Check if user can access security logs.
      *
      * Based on the application's role system:
@@ -205,5 +274,31 @@ class SecurityLogController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Check if user can delete security logs.
+     * Only users with settings permission (permission 1) can delete.
+     *
+     * @param mixed $user
+     * @return bool
+     */
+    protected function canDeleteSecurityLogs($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        // Super admin (user ID 1) always has access
+        if ($user->id === 1) {
+            return true;
+        }
+
+        // Check for settings permission in role
+        $role = $user->role ?? '';
+        $permissions = explode(',', $role);
+
+        // Permission 1 = settings access (same as TwoFactorSettingsController)
+        return in_array('1', $permissions);
     }
 }
