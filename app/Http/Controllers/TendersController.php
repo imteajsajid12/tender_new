@@ -2631,7 +2631,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
 
                 $row++;
             }
-			
+
 			   // Retrieve yes/no questions data (שאלות כן ולא)
             $yesNoQuestions = [];
             if (isset($apps_meta['yes_no_questions'])) {
@@ -4484,8 +4484,8 @@ or app_id in (select p3_id from app_decisions where tenderval=\'' . $rid . '\') 
             return back()->with('error', 'שגיאה בשמירת המסמך: ' . $e->getMessage());
         }
     }
-	
-	
+
+
 
 
     function tenderBodyImage(Request $request, $tender)
@@ -4842,9 +4842,16 @@ or app_id in (select p3_id from app_decisions where tenderval=\'' . $rid . '\') 
                 $qualificationType = 'לא הוגדר';
         }
 
+        // For "יתרון" (advantage) type, if no files uploaded by candidate, show empty instead of "awaiting approval"
+        $fileStatus = 'ממתין לאישור';
+        if ($qualificationType === 'יתרון') {
+        $fileStatus = 'ריק'; // Empty for advantage when candidate hasn't attached anything
+
+        }
+
         return [
             'qualification_type' => $qualificationType,
-            'file_status' => 'ממתין לאישור'
+            'file_status' => $fileStatus
         ];
     }
 
