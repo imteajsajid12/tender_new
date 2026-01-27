@@ -123,7 +123,8 @@
     <div class="email-container">
         <div class="email-card">
             <div class="email-header">
-                <h1>{{ $appName ?? config('app.name') }}</h1>
+                {{-- <h1>{{ $appName ?? config('app.name') }}</h1> --}}
+                <h1 style="color: #fff">Kiryat-arba</h1>
                 <p>אימות זהות מאובטח</p>
             </div>
 

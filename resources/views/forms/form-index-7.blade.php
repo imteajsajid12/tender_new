@@ -749,8 +749,8 @@
 
                                                     </div>
                                                     @php
-                                                        $hasEducationFiles = false;
-                                                        $files = (is_array($qualificationsData[$application->id]['education']['files']) && count($qualificationsData[$application->id]['education']['files']) > 0) ? $qualificationsData[$application->id]['education']['files'] : $application->files;
+                                                        // Use ONLY files categorized for education from qualificationsData
+                                                        $files = (is_array($qualificationsData[$application->id]['education']['files']) && count($qualificationsData[$application->id]['education']['files']) > 0) ? $qualificationsData[$application->id]['education']['files'] : [];
 
                                                     @endphp
 
@@ -759,6 +759,9 @@
                                                     {{-- Show files for education --}}
                                                     @foreach ($files as $file)
                                                         @php
+                                                            // Skip CV files
+                                                            if ($file->is_cv == 1) continue;
+
                                                             $displayName = $file->input_field_label ?? '';
                                                             if (empty($displayName)) {
                                                                 $file_name_parts = explode('^^', $file->file_name);
@@ -774,14 +777,11 @@
                                                                     }
                                                                 }
                                                             }
-                                                            $shouldShow = ($file->is_cv == 0 || $file->is_cv === null);
                                                         @endphp
-                                                        @if ($shouldShow)
-                                                            @php array_push($appIds, $file->id); @endphp
-                                                            <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $displayName }}">
-                                                                {{ $displayName }}
-                                                            </a><br>
-                                                        @endif
+                                                        @php array_push($appIds, $file->id); @endphp
+                                                        <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $displayName }}">
+                                                            {{ $displayName }}
+                                                        </a><br>
                                                     @endforeach
                                                 @else
                                                     <div style="color: black;"></div>
@@ -799,14 +799,17 @@
                                                     </div>
 
                                                     @php
-                                                        $hasManagementFiles = false;
-                                                        $files = (is_array($qualificationsData[$application->id]['management_experience']['files']) && count($qualificationsData[$application->id]['management_experience']['files']) > 0) ? $qualificationsData[$application->id]['management_experience']['files'] : $application->files;
+                                                        // Use ONLY files categorized for management_experience from qualificationsData
+                                                        $files = (is_array($qualificationsData[$application->id]['management_experience']['files']) && count($qualificationsData[$application->id]['management_experience']['files']) > 0) ? $qualificationsData[$application->id]['management_experience']['files'] : [];
 
                                                     @endphp
 
                                                     {{-- Show files for management experience --}}
                                                     @foreach ($files as $file)
                                                         @php
+                                                            // Skip CV files
+                                                            if ($file->is_cv == 1) continue;
+
                                                             $displayName = $file->input_field_label ?? '';
                                                             if (empty($displayName)) {
                                                                 $file_name_parts = explode('^^', $file->file_name);
@@ -822,14 +825,11 @@
                                                                     }
                                                                 }
                                                             }
-                                                            $shouldShow = ($file->is_cv == 0 || $file->is_cv === null);
                                                         @endphp
-                                                        @if ($shouldShow)
-                                                            @php array_push($appIds, $file->id); @endphp
-                                                            <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $displayName }}">
-                                                                {{ $displayName }}
-                                                            </a><br>
-                                                        @endif
+                                                        @php array_push($appIds, $file->id); @endphp
+                                                        <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $displayName }}">
+                                                            {{ $displayName }}
+                                                        </a><br>
                                                     @endforeach
 
                                                 @else
@@ -839,7 +839,7 @@
 
 
 
-                                            
+
                                             {{-- 9. ניסיון מקצועי - Professional Experience --}}
                                           <td>
                                                 @php
@@ -854,12 +854,15 @@
                                                     </div>
                                                 @endif
 
-                                                {{-- Show ONLY ניסיון מקצועי in this column --}}
-                                                @foreach ($application->files as $file)
+                                                {{-- Use ONLY files categorized for professional_experience from qualificationsData --}}
+                                                @php
+                                                    $files = (is_array($qualificationsData[$application->id]['professional_experience']['files']) && count($qualificationsData[$application->id]['professional_experience']['files']) > 0) ? $qualificationsData[$application->id]['professional_experience']['files'] : [];
+                                                @endphp
+
+                                                @foreach ($files as $file)
                                                     @php
-                                                        // Skip CV and test files
+                                                        // Skip CV files
                                                         if ($file->is_cv == 1) continue;
-                                                        if ($file->type === 'mandatory_test') continue;
 
                                                         // resolve display name
                                                         $displayName = $file->input_field_label ?? '';
@@ -877,41 +880,11 @@
                                                                 }
                                                             }
                                                         }
-
-
-                                                        // Check if this file should be shown in ניסיון מקצועי column
-                                                        $isNisayonMekzoei = false;
-
-                                                        // match in display label
-                                                        if (
-                                                            strpos(trim($displayName), 'ניסיון מקצועי') !== false ||
-                                                            strpos(trim($displayName), 'נסיון מקצועי') !== false
-                                                        ) {
-                                                            $isNisayonMekzoei = true;
-                                                        }
-
-                                                        // match in file name
-                                                        if (
-                                                            strpos($file->file_name, 'ניסיון מקצועי') !== false ||
-                                                            strpos($file->file_name, 'נסיון מקצועי') !== false
-                                                        ) {
-                                                            $isNisayonMekzoei = true;
-                                                        }
-
-                                                        // NOTE: Removed input_field_name === 'professional_experience' check
-                                                        // because multiple files can have this field name but should be shown
-                                                        // in different columns based on their actual display name
-
-                                                        $shouldShow = $isNisayonMekzoei;
-                                                        $finalDisplayName = 'ניסיון מקצועי';
                                                     @endphp
-
-                                                    @if ($shouldShow)
-                                                        @php array_push($appIds, $file->id); @endphp
-                                                        <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $finalDisplayName }}">
-                                                            {{ $finalDisplayName }}
-                                                        </a><br>
-                                                    @endif
+                                                    @php array_push($appIds, $file->id); @endphp
+                                                    <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $displayName }}">
+                                                        {{ $displayName }}
+                                                    </a><br>
                                                 @endforeach
                                             </td>
 
@@ -927,14 +900,17 @@
 
                                                     </div>
                                                     @php
-                                                        $hasAdditionalRequirementsFiles = false;
-                                                        $files = (is_array($qualificationsData[$application->id]['additional_requirements']['files']) && count($qualificationsData[$application->id]['additional_requirements']['files']) > 0) ? $qualificationsData[$application->id]['additional_requirements']['files'] : $application->files;
+                                                        // Use ONLY files categorized for additional_requirements from qualificationsData
+                                                        $files = (is_array($qualificationsData[$application->id]['additional_requirements']['files']) && count($qualificationsData[$application->id]['additional_requirements']['files']) > 0) ? $qualificationsData[$application->id]['additional_requirements']['files'] : [];
 
                                                     @endphp
 
                                                     {{-- Show files for additional requirements --}}
                                                     @foreach ($files as $file)
                                                         @php
+                                                            // Skip CV files
+                                                            if ($file->is_cv == 1) continue;
+
                                                             $displayName = $file->input_field_label ?? '';
                                                             if (empty($displayName)) {
                                                                 $file_name_parts = explode('^^', $file->file_name);
@@ -950,14 +926,11 @@
                                                                     }
                                                                 }
                                                             }
-                                                            $shouldShow = ($file->is_cv == 0 || $file->is_cv === null) ;
                                                         @endphp
-                                                        @if ($shouldShow)
-                                                            @php array_push($appIds, $file->id); @endphp
-                                                            <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $displayName }}">
-                                                                {{ $displayName }}
-                                                            </a><br>
-                                                        @endif
+                                                        @php array_push($appIds, $file->id); @endphp
+                                                        <a href="{{ asset('upload/' . $file->url) }}" target="_blank" title="{{ $displayName }}">
+                                                            {{ $displayName }}
+                                                        </a><br>
                                                     @endforeach
                                                 @else
                                                     <div style="color: black;"></div>
