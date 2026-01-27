@@ -3092,7 +3092,10 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
 
             if (!$decs) {
                 Log::error('Application decision not found', ['did' => $did]);
-                return response()->json(['error' => 'Application not found'], 404);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'הפניה לא נמצאה'
+                ], 404);
             }
 
             $files = DB::table('apps_file')
@@ -3150,7 +3153,10 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                     'p5_id' => $decs->p5_id,
                     'total_files' => count($files)
                 ]);
-                return response()->json(['error' => 'No valid PDF files found to send'], 400);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'לא נמצאו קבצי PDF תקינים לשליחה'
+                ], 400);
             }
 
             Log::info('Merging ' . $filesAdded . ' files');
@@ -3168,14 +3174,20 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 'files_merged' => $filesAdded
             ]);
 
-            return "success";
+            return response()->json([
+                'success' => true,
+                'message' => 'המייל נשלח בהצלחה עם ' . $filesAdded . ' קבצים'
+            ]);
         } catch (\Throwable $th) {
             Log::error('Custom mail send failed', [
                 'did' => $did,
                 'error' => $th->getMessage(),
                 'trace' => $th->getTraceAsString()
             ]);
-            return response()->json(['error' => 'Failed to send email: ' . $th->getMessage()], 500);
+            return response()->json([
+                'success' => false,
+                'message' => 'שגיאה בשליחת המייל: ' . $th->getMessage()
+            ], 500);
         }
     }
 
@@ -3238,15 +3250,21 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $appid = $app_decision->id;
         }
 
+        // Decrypt the file name if it's encrypted
+        $decryptedFileName = $file->file_name;
+        if ($this->encryptionService->isEncrypted($file->file_name)) {
+            $decryptedFileName = $this->encryptionService->decrypt($file->file_name);
+        }
+
         if ($file->type != 'pdf') {
-            $file_arr = explode('^^', $file->file_name);
+            $file_arr = explode('^^', $decryptedFileName);
             if (isset($file_arr[1])) {
                 $file_name = $file_arr[1];
             } else {
-                $file_name = $file->file_name;
+                $file_name = $decryptedFileName;
             }
         } else {
-            $file_name = $file->file_name;
+            $file_name = $decryptedFileName;
         }
         $formsTable = Forms::getFFF();
         $body = '<div style="color:#111;margin-bottom: 15px;">' . $msg;

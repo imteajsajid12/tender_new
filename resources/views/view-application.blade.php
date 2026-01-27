@@ -1731,33 +1731,132 @@
             /* Act on the event */
             var id = $('#send_custom_mail_wrap').find('#send_custom_mail_app_id').val()
             var mail = $('#send_custom_mail_wrap').find('#send_custom_mail').val()
-            $('#send_custom_mail_btn').text('Sending...')
-            $.ajax({
-                    headers: {
-                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                    },
-                    url: '{{ route('customMailFileSend', ['did' => $application->id]) }}',
-                    type: 'POST',
-                    data: {
-                        id: id,
-                        email: mail
-                    },
-                })
-                .done(function() {
-                    console.log("success");
-                    $('#send_custom_mail_btn').text('Files Sent')
-                    $('#send_custom_mail_wrap').find('#send_custom_mail').val('')
-                    setTimeout(() => {
-                        $('#send_custom_mail_btn').text('נשלח מייל')
-                    }, 5000);
-                })
-                .fail(function() {
-                    console.log("error");
-                })
-                .always(function() {
-                    console.log("complete");
+            
+            // Validate email
+            if (!mail || mail.trim() === '') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'שים לב',
+                    text: 'נא להזין כתובת דואר אלקטרוני',
+                    confirmButtonText: 'אישור',
+                    confirmButtonColor: '#3085d6'
                 });
-
+                return;
+            }
+            
+            // Email format validation
+            var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(mail)) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'כתובת דואר אלקטרוני לא תקינה',
+                    text: 'נא להזין כתובת דואר אלקטרוני חוקית',
+                    confirmButtonText: 'אישור',
+                    confirmButtonColor: '#d33'
+                });
+                return;
+            }
+            
+            // Confirmation before sending
+            Swal.fire({
+                icon: 'question',
+                title: 'אישור שליחת מייל',
+                text: 'האם לשלוח את כל הקבצים לכתובת: ' + mail + '?',
+                showCancelButton: true,
+                confirmButtonText: 'שלח',
+                cancelButtonText: 'ביטול',
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Show loading
+                    Swal.fire({
+                        title: 'שולח מייל...',
+                        html: 'אנא המתן בזמן שהמערכת מרכיבה ושולחת את הקבצים',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                    
+                    $('#send_custom_mail_btn').text('שולח...').prop('disabled', true);
+                    
+                    $.ajax({
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            url: '{{ route('customMailFileSend', ['did' => $application->id]) }}',
+                            type: 'POST',
+                            data: {
+                                id: id,
+                                email: mail
+                            },
+                        })
+                        .done(function(response) {
+                            console.log("success", response);
+                            if (response.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'נשלח בהצלחה!',
+                                    html: response.message || 'המייל נשלח בהצלחה',
+                                    confirmButtonText: 'סגור',
+                                    confirmButtonColor: '#28a745',
+                                    timer: 5000,
+                                    timerProgressBar: true
+                                });
+                                $('#send_custom_mail_btn').text('נשלח ✓');
+                                $('#send_custom_mail_wrap').find('#send_custom_mail').val('');
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'שגיאה בשליחה',
+                                    html: response.message || 'שגיאה בשליחת המייל',
+                                    confirmButtonText: 'אישור',
+                                    confirmButtonColor: '#dc3545'
+                                });
+                                $('#send_custom_mail_btn').text('נשלח מייל').prop('disabled', false);
+                            }
+                            setTimeout(() => {
+                                $('#send_custom_mail_btn').text('נשלח מייל').prop('disabled', false);
+                            }, 3000);
+                        })
+                        .fail(function(xhr) {
+                            console.log("error", xhr);
+                            var errorMessage = 'שגיאה בשליחת המייל';
+                            var errorDetails = '';
+                            
+                            if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            }
+                            
+                            if (xhr.status === 404) {
+                                errorDetails = 'הפניה לא נמצאה במערכת';
+                            } else if (xhr.status === 400) {
+                                errorDetails = errorMessage;
+                            } else if (xhr.status === 500) {
+                                errorDetails = 'שגיאת שרת - נא לנסות שוב מאוחר יותר';
+                            }
+                            
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'שגיאה',
+                                html: '<div style="text-align: right; direction: rtl;">' +
+                                      '<strong>' + errorMessage + '</strong><br>' +
+                                      (errorDetails ? '<small>' + errorDetails + '</small>' : '') +
+                                      '</div>',
+                                confirmButtonText: 'אישור',
+                                confirmButtonColor: '#dc3545',
+                                footer: xhr.status ? '<div dir="rtl">קוד שגיאה: ' + xhr.status + '</div>' : ''
+                            });
+                            $('#send_custom_mail_btn').text('נשלח מייל').prop('disabled', false);
+                        })
+                        .always(function() {
+                            console.log("complete");
+                        });
+                }
+            });
 
         });
 
