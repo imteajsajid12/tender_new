@@ -656,11 +656,11 @@
                             </thead>
                             <tbody>
                                 @php
-                                    $nearness = $request->input('nearness', '');
-                                    $relativeNames = $request->input('relative_name', []);
-                                    $relativeDistances = $request->input('relative_distance', []);
-                                    $roles = $request->input('relative_name_d1', []);
-                                    $departments = $request->input('relative_division_department_d1', []);
+                                    $nearness = $request->nearness ?? '';
+                                    $relativeNames = $request->relative_name ?? [];
+                                    $relativeDistances = $request->relative_distance ?? [];
+                                    $roles = $request->relative_name_d1 ?? [];
+                                    $departments = $request->relative_division_department_d1 ?? [];
                                 @endphp
 
                                 @if ($nearness === 'no')
