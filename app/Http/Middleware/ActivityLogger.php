@@ -12,6 +12,9 @@ class ActivityLogger
 {
     /**
      * Routes and patterns that indicate login attempts.
+     * Note: Login attempts are now logged directly in LoginController and TwoFactorController
+     * to properly handle the 2FA flow. The middleware should NOT log login attempts
+     * to avoid duplicate/incorrect logging.
      */
     protected array $loginRoutes = ['login'];
 
@@ -119,15 +122,16 @@ class ActivityLogger
     }
 
     /**
-     * Check if request is security relevant (login, download, permission change).
+     * Check if request is security relevant (download, permission change).
+     * Note: Login attempts are excluded as they're handled by controllers.
      */
     protected function isSecurityRelevant(Request $request): bool
     {
         $routeName = $request->route()?->getName();
         $uri = $request->path();
 
-        return $this->isLoginAttempt($request, $routeName, $uri)
-            || $this->isDownloadRequest($request, $routeName, $uri)
+        // Login attempts are handled by LoginController/TwoFactorController, not middleware
+        return $this->isDownloadRequest($request, $routeName, $uri)
             || $this->isPermissionChange($request, $routeName, $uri);
     }
 
@@ -140,10 +144,14 @@ class ActivityLogger
         $uri = $request->path();
         $method = $request->method();
 
-        // Only log POST/PUT/PATCH for certain actions, GET for downloads
+        // Skip login attempt logging - it's handled by LoginController and TwoFactorController
+        // to properly handle the 2FA flow without duplicate/incorrect logs
         if ($this->isLoginAttempt($request, $routeName, $uri)) {
-            $this->logLoginAttempt($request, $response);
-        } elseif ($this->isDownloadRequest($request, $routeName, $uri)) {
+            return;
+        }
+
+        // Log other security-relevant activities
+        if ($this->isDownloadRequest($request, $routeName, $uri)) {
             $this->logFileDownload($request, $response);
         } elseif ($this->isPermissionChange($request, $routeName, $uri)) {
             $this->logPermissionChange($request, $response);
