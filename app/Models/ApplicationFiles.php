@@ -4,11 +4,10 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\Encryptable;
 
 class ApplicationFiles extends Model
 {
-    use HasFactory, Encryptable;
+    use HasFactory;
 
     /**
      * The table associated with the model.
@@ -38,17 +37,6 @@ class ApplicationFiles extends Model
         'file_name',
         'input_field_name',
         'input_field_label',
-        'is_cv',
-        'encryption_key_slot'
-    ];
-
-    /**
-     * The attributes that should be encrypted/decrypted automatically.
-     *
-     * @var array
-     */
-    protected $encryptable = [
-        'url',
-        'file_name'
+        'is_cv'
     ];
 }

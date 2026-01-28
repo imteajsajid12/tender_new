@@ -225,31 +225,18 @@ class Applications extends Model
     public static function getformfile($app_id)
     {
         if ($app_id) {
-            // Get all PDF files for this application
+            // Get all PDF files for this application - no encryption
             $files = DB::table('apps_file')
                 ->where([
                     ['app_id', '=', $app_id],
                     ['type', '=', 'pdf'],
                 ])->get();
 
-            // Initialize encryption service
-            $encryptionService = app(\App\Services\EncryptionService::class);
-
-            // Filter for form.pdf files after decrypting file_name
+            // Filter for form.pdf files (no encryption - plain text)
             $formFiles = [];
             foreach ($files as $file) {
-                $decryptedName = $file->file_name;
-                if ($encryptionService->isEncrypted($file->file_name)) {
-                    $decryptedName = $encryptionService->decrypt($file->file_name);
-                }
-
                 // Check if this is a form.pdf file
-                if ($decryptedName === 'form.pdf' || strpos($decryptedName, 'form.pdf') !== false) {
-                    // Decrypt URL as well for proper file access
-                    if ($encryptionService->isEncrypted($file->url)) {
-                        $file->url = $encryptionService->decrypt($file->url);
-                    }
-                    $file->file_name = $decryptedName; // Store decrypted name
+                if ($file->file_name === 'form.pdf' || strpos($file->file_name, 'form.pdf') !== false) {
                     $formFiles[] = $file;
                 }
             }
@@ -278,13 +265,10 @@ class Applications extends Model
                     ['app_id', '=', $app_id],
                 ])->get();
 
-            // Decrypt file_name and filter out 'form.pdf' of type 'pdf'
-            $encryptionService = app(\App\Services\EncryptionService::class);
+            // Filter out 'form.pdf' of type 'pdf' (no encryption - plain text)
             $filtered = [];
             foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (!($decryptedName === 'form.pdf' && $f->type === 'pdf')) {
-                    $f->file_name = $decryptedName;
+                if (!($f->file_name === 'form.pdf' && $f->type === 'pdf')) {
                     $filtered[] = $f;
                 }
             }
@@ -1291,7 +1275,12 @@ class Applications extends Model
             ])->setPaper('A4')->setOrientation('portrait');
             $filename = public_path('upload/admin/' . $fail_name . '.pdf');
             $pdf->save($filename);
+            // Decrypt email if encrypted
+            $encryptionService = app(\App\Services\EncryptionService::class);
             $to = $app->email;
+            if ($encryptionService->isEncrypted($app->email)) {
+                $to = $encryptionService->decrypt($app->email);
+            }
             $body = '<h3>תודה על פנייתכם, מצ"ב:</h3>
                     <ol>
                         <li>טופס הבקשה שמילאתם.</li>
@@ -1340,7 +1329,7 @@ class Applications extends Model
             $tender = DB::table('tenders')->where('generated_id', '=', $app_decision->tenderval)->first();
             $tender_name = $tender ? $tender->tname : 'מכרז';
 
-            // Initialize encryption service for decrypting email and file URLs
+            // Initialize encryption service for decrypting email (email is still encrypted)
             $encryptionService = app(\App\Services\EncryptionService::class);
 
             // Prepare email content - decrypt email if encrypted
@@ -1349,22 +1338,9 @@ class Applications extends Model
                 $to = $encryptionService->decrypt($app->email);
             }
 
-            // Additional validation: if email still appears encrypted, try direct decryption
-            if ($to && $encryptionService->isEncrypted($to)) {
-                try {
-                    $to = $encryptionService->decrypt($to);
-                } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error('Failed to decrypt email in api_answer_mail_page5', [
-                        'app_id' => $app_id,
-                        'error' => $e->getMessage()
-                    ]);
-                    return 'error';
-                }
-            }
-
-            // Final validation: ensure email is not encrypted before sending
-            if (!$to || $encryptionService->isEncrypted($to) || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
-                \Illuminate\Support\Facades\Log::error('Invalid or encrypted email in api_answer_mail_page5', [
+            // Final validation: ensure email is valid
+            if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                \Illuminate\Support\Facades\Log::error('Invalid email in api_answer_mail_page5', [
                     'app_id' => $app_id,
                     'email' => $to
                 ]);
@@ -1376,16 +1352,10 @@ class Applications extends Model
             // Collect all files for this application
             $attachments = [];
 
-            // Get the form PDF
+            // Get the form PDF - url is stored as plain text (no encryption)
             $form_pdf = self::get_pdf_file($app_id);
             if ($form_pdf) {
-                // Decrypt the URL if encrypted
-                $decrypted_url = $form_pdf->url;
-                if ($encryptionService->isEncrypted($form_pdf->url)) {
-                    $decrypted_url = $encryptionService->decrypt($form_pdf->url);
-                }
-
-                $file_path = public_path('upload/' . $decrypted_url);
+                $file_path = public_path('upload/' . $form_pdf->url);
                 if (file_exists($file_path)) {
                     $attachments[] = $file_path;
                 }
@@ -1406,13 +1376,8 @@ class Applications extends Model
             ])->render();
             if ($uploaded_files) {
                 foreach ($uploaded_files as $file) {
-                    // Decrypt the URL if encrypted
-                    $decrypted_url = $file->url;
-                    if (isset($file->url) && $encryptionService->isEncrypted($file->url)) {
-                        $decrypted_url = $encryptionService->decrypt($file->url);
-                    }
-
-                    $file_path = public_path('upload/' . $decrypted_url);
+                    // url is stored as plain text (no encryption)
+                    $file_path = public_path('upload/' . $file->url);
                     if (file_exists($file_path)) {
                         $attachments[] = $file_path;
                     }
@@ -1524,14 +1489,13 @@ class Applications extends Model
             $user = auth()->user();
             $fileID = $request->fileID;
             if ($request->fileID == 'newfile') {
-                $encryptionService = app(EncryptionService::class);
+                // No encryption - store url and file_name as plain text
                 $fileID = DB::table('apps_file')->insertGetId([
                     'app_id' => $request->appid,
-                    'url' => $encryptionService->encrypt('empty.txt'),
+                    'url' => 'empty.txt',
                     'type' => 'newfile',
-                    'file_name' => $encryptionService->encrypt(' ^^מסמך אחר'),
-                    'status' => 4,
-                    'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                    'file_name' => ' ^^מסמך אחר',
+                    'status' => 4
                 ]);
             } else {
                 DB::table('apps_file')
@@ -1678,7 +1642,12 @@ class Applications extends Model
         if (empty($metamail)) {
             return "אין מידע שניתן לשלוח בדואר";
         } else {
+            // Decrypt email if encrypted (email field is still encrypted in applications table)
+            $encryptionService = app(\App\Services\EncryptionService::class);
             $to = $app->email;
+            if ($encryptionService->isEncrypted($app->email)) {
+                $to = $encryptionService->decrypt($app->email);
+            }
             Applications::sendmail($to, $metamail, 'app');
             DB::table('apps_meta')
                 ->where([
@@ -1898,7 +1867,13 @@ class Applications extends Model
         $type = !empty($request->type) ? $request->type : '1';
         $app = DB::table('applications')->where('id', '=', $app_id)->first();
         if (empty($app))  return 'error2';
-        $to[] = $app->email;
+        // Decrypt email if encrypted (email field is still encrypted in applications table)
+        $encryptionService = app(\App\Services\EncryptionService::class);
+        $email = $app->email;
+        if ($encryptionService->isEncrypted($app->email)) {
+            $email = $encryptionService->decrypt($app->email);
+        }
+        $to[] = $email;
         $m = DB::table('apps_meta')->where([
             ['app_id', '=', $app_id],
             ['meta_name', '=', 'app_users'],
@@ -2000,9 +1975,16 @@ class Applications extends Model
         if (empty($app) && $request->type != 'cvmail')  return 'error2';
         $user = \App\User::getCCurrentUser();
         $logText = '';
-        $to[] = $app->email;
+
+        // Decrypt email if encrypted (email field is still encrypted in applications table)
+        $encryptionService = app(\App\Services\EncryptionService::class);
+        $email = $app->email;
+        if ($encryptionService->isEncrypted($app->email)) {
+            $email = $encryptionService->decrypt($app->email);
+        }
+        $to[] = $email;
         Log::debug('$id: ' . $request->id);
-        Log::debug('Email: ' . $app->email);
+        Log::debug('Email: ' . $email);
 
         $tender = DB::table('tenders')->where(["generated_id" => $decisions->tenderval])->first();
 
@@ -2114,15 +2096,14 @@ class Applications extends Model
             DB::table('apps_meta')->insert([
                 ['app_id' => $request->id, 'meta_name' => $answer_meta_name, 'meta_value' => $fail_name . '.pdf'],
             ]);
-            $encryptionService = app(EncryptionService::class);
+            // No encryption - store url and file_name as plain text
             DB::table('apps_file')->insert([
                 [
                     'app_id' => $app_id,
-                    'url' => $encryptionService->encrypt($fail_name . '.pdf'),
+                    'url' => $fail_name . '.pdf',
                     'type' => 'pdf',
-                    'file_name' => $encryptionService->encrypt($answer_meta_name),
-                    'status' => '1',
-                    'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                    'file_name' => $answer_meta_name,
+                    'status' => '1'
                 ],
             ]);
             //DB::table('applications')->where('id', $app_id)->update(['status' => $status]);
@@ -2159,7 +2140,14 @@ class Applications extends Model
         if (empty($app) && $request->type != 'cvmail')  return 'error2';
         $user = \App\User::getCCurrentUser();
         $logText = '';
-        $to[] = $app->email;
+
+        // Decrypt email if encrypted (email field is still encrypted in applications table)
+        $encryptionService = app(\App\Services\EncryptionService::class);
+        $email = $app->email;
+        if ($encryptionService->isEncrypted($app->email)) {
+            $email = $encryptionService->decrypt($app->email);
+        }
+        $to[] = $email;
         Log::debug('$id: ' . $request->id);
         $decisions = DB::table('app_decisions')->where(["id" => $request->id])->first();
         $tender = DB::table('tenders')->where(["generated_id" => $decisions->tenderval])->first();
@@ -2237,15 +2225,14 @@ class Applications extends Model
             DB::table('apps_meta')->insert([
                 ['app_id' => $request->id, 'meta_name' => $answer_meta_name, 'meta_value' => $fail_name . '.pdf'],
             ]);
-            $encryptionService = app(EncryptionService::class);
+            // No encryption - store url and file_name as plain text
             DB::table('apps_file')->insert([
                 [
                     'app_id' => $app_id,
-                    'url' => $encryptionService->encrypt($fail_name . '.pdf'),
+                    'url' => $fail_name . '.pdf',
                     'type' => 'pdf',
-                    'file_name' => $encryptionService->encrypt($answer_meta_name),
-                    'status' => '1',
-                    'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                    'file_name' => $answer_meta_name,
+                    'status' => '1'
                 ],
             ]);
             //DB::table('applications')->where('id', $app_id)->update(['status' => $status]);
@@ -2446,14 +2433,13 @@ class Applications extends Model
             Mail::to($to)->send(new SendMailable($body, $files, 'app', 'מכרז למשרת ' . $tender->tname . ' - מועצה מקומית קריית ארבע חברון'));
             $meta_data[] = ['app_id' => $id, 'meta_name' => 'email_msg', 'meta_value' => 'מייל נשלח בהצלחה'];
             \App\Forms::insert_meta($meta_data);
-            $encryptionService = app(EncryptionService::class);
+            // No encryption - store url and file_name as plain text
             $fileID = DB::table('apps_file')->insertGetId([
                 'app_id' => $decisions->p5_id,
-                'url' => $encryptionService->encrypt($fail_name . ".pdf"),
+                'url' => $fail_name . ".pdf",
                 'type' => 'pdf',
-                'file_name' => $encryptionService->encrypt('decisionreject0b.pdf'),
-                'status' => 1,
-                'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                'file_name' => 'decisionreject0b.pdf',
+                'status' => 1
             ]);
         } else {
             return 'error';
@@ -2535,26 +2521,24 @@ class Applications extends Model
                         Mail::to($to)->send(new SendMailable($body, $files, 'app', 'מכרז למשרת ' . $tender->tname . ' - מועצה מקומית קריית ארבע חברון'));
                         $meta_data[] = ['app_id' => $id, 'meta_name' => 'email_msg', 'meta_value' => 'מייל נשלח בהצלחה'];
                         \App\Forms::insert_meta($meta_data);
-                        $encryptionService = app(EncryptionService::class);
+                        // No encryption - store url and file_name as plain text
                         if ($view == "committee") {
                             $meta_data[] = ['app_id' => $id, 'meta_name' => 'committee', 'meta_value' => $committee_meetings . "@#$#@" . $committee_meeting_data];
                             \App\Forms::insert_meta($meta_data);
                             $fileID = DB::table('apps_file')->insertGetId([
                                 'app_id' => $data["p5_id"],
-                                'url' => $encryptionService->encrypt($fail_name . ".pdf"),
+                                'url' => $fail_name . ".pdf",
                                 'type' => 'no',
-                                'file_name' => $encryptionService->encrypt($decision->applicant_name . '@הַזמָנָה^^הַזמָנָה'),
-                                'status' => 0,
-                                'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                                'file_name' => $decision->applicant_name . '@הַזמָנָה^^הַזמָנָה',
+                                'status' => 0
                             ]);
                         } else {
                             $fileID = DB::table('apps_file')->insertGetId([
                                 'app_id' => $data["p5_id"],
-                                'url' => $encryptionService->encrypt($fail_name . ".pdf"),
+                                'url' => $fail_name . ".pdf",
                                 'type' => 'pdf',
-                                'file_name' => $encryptionService->encrypt('decision' . $view . '.pdf'),
-                                'status' => 1,
-                                'encryption_key_slot' => $encryptionService->getCurrentKeySlot()
+                                'file_name' => 'decision' . $view . '.pdf',
+                                'status' => 1
                             ]);
                         }
 

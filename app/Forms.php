@@ -739,32 +739,7 @@ class Forms extends Model
 	{
 		if (isset($file_data) && !empty($file_data)) {
 			try {
-				// Encrypt url and file_name fields before inserting
-				$encryptionService = app(EncryptionService::class);
-
-				// Handle both single record and array of records
-				$isMultiple = isset($file_data[0]) && is_array($file_data[0]);
-
-				if ($isMultiple) {
-					foreach ($file_data as &$record) {
-						if (isset($record['url'])) {
-							$record['url'] = $encryptionService->encrypt($record['url']);
-						}
-						if (isset($record['file_name'])) {
-							$record['file_name'] = $encryptionService->encrypt($record['file_name']);
-						}
-						$record['encryption_key_slot'] = $encryptionService->getCurrentKeySlot();
-					}
-				} else {
-					if (isset($file_data['url'])) {
-						$file_data['url'] = $encryptionService->encrypt($file_data['url']);
-					}
-					if (isset($file_data['file_name'])) {
-						$file_data['file_name'] = $encryptionService->encrypt($file_data['file_name']);
-					}
-					$file_data['encryption_key_slot'] = $encryptionService->getCurrentKeySlot();
-				}
-
+				// No encryption - store url and file_name as plain text
 				DB::table('apps_file')->insert(
 					$file_data
 				);

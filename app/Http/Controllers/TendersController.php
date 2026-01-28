@@ -866,15 +866,14 @@ tender_number like '%" . $request->search . "%'"); //TODO ESCAPE!!); //TODO ESCA
             // Move file to upload directory
             $file->move(public_path('upload/admin/'), $filename);
 
-            // Save file data to database with encryption
+            // Save file data to database (no encryption for url/file_name)
             $file_data = [
                 'app_dec_id' => $applicationId,
                 'app_id' => 0, // For test files uploaded by admin
-                'url' => $this->encryptionService->encrypt($filename),
+                'url' => $filename,
                 'type' => 'mandatory_test',
-                'file_name' => $this->encryptionService->encrypt('מבחן_חובה_' . $file->getClientOriginalName()."^^מבחן_חובה"),
-                'status' => '1',
-                'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+                'file_name' => 'מבחן_חובה_' . $file->getClientOriginalName()."^^מבחן_חובה",
+                'status' => '1'
             ];
 
             DB::table('apps_file')->insert($file_data);
@@ -2280,11 +2279,10 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                     \App\Forms::insert_meta($meta_data);
                     $fileID = DB::table('apps_file')->insertGetId([
                         'app_id' => $data["p5_id"],
-                        'url' => $this->encryptionService->encrypt($fail_name . ".pdf"),
+                        'url' => $fail_name . ".pdf",
                         'type' => 'pdf',
-                        'file_name' => $this->encryptionService->encrypt('decision' . $view . '.pdf'),
-                        'status' => 1,
-                        'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+                        'file_name' => 'decision' . $view . '.pdf',
+                        'status' => 1
                     ]);
                     DB::table('apps_logs')->insert([['app_id' => $request->decisionId, 'description' => $data["logText"]]]);
 
@@ -2387,18 +2385,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 }
             }
 
-            // Decrypt file names and URLs for all files before passing to view
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            foreach ($afiles as $file) {
-                // Decrypt file_name if encrypted
-                if (isset($file->file_name) && $encryptionService->isEncrypted($file->file_name)) {
-                    $file->file_name = $encryptionService->decrypt($file->file_name);
-                }
-                // Decrypt url if encrypted
-                if (isset($file->url) && $encryptionService->isEncrypted($file->url)) {
-                    $file->url = $encryptionService->decrypt($file->url);
-                }
-            }
+            // No decryption needed - url and file_name are stored as plain text
 
             $decfile = collect();
             if (isset($p1) && !empty($p1)) {
@@ -2407,9 +2394,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 $files = DB::table('apps_file')->where('app_id', $p5)->get();
             }
             foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (str_starts_with($decryptedName, 'decision')) {
-                    $f->file_name = $decryptedName;
+                if (str_starts_with($f->file_name, 'decision')) {
                     $decfile->push($f);
                 }
             }
@@ -2471,13 +2456,11 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 }
             }
             // Count files for the group of app ids where file_name != 'form.pdf' and status not in (1,4)
-            $encryptionService = app(\App\Services\EncryptionService::class);
             $appIds = array_filter([$p1, $p2, $p3, $p5]);
             $files = DB::table('apps_file')->whereIn('app_id', $appIds)->whereNotIn('status', [1, 4])->get();
             $cc_notapproved = 0;
             foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if ($decryptedName !== 'form.pdf') {
+                if ($f->file_name !== 'form.pdf') {
                     $cc_notapproved++;
                 }
             }
@@ -2707,20 +2690,8 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $updateData['decision_3_b'] = 0;
             $updateData['decision_4'] = 0;
             $updateData['decision_committee'] = 0;
-            // Remove any decision files matching the plaintext names by decrypting stored names
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionapprove0a.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            // Remove any decision files matching the names (no encryption)
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionapprove0a.pdf'])->delete();
         }
         if ($request->app_status == 'Interview A') {
             $updateData['decision_1_a'] = 0;
@@ -2731,19 +2702,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $updateData['decision_3_b'] = 0;
             $updateData['decision_4'] = 0;
             $updateData['decision_committee'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionapprove0.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionapprove0.pdf'])->delete();
         }
         if ($request->app_status == 'Interview B') {
             $updateData['decision_1_a'] = 0;
@@ -2754,19 +2713,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $updateData['decision_3_b'] = 0;
             $updateData['decision_4'] = 0;
             $updateData['decision_committee'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionapprove0b.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionapprove0b.pdf'])->delete();
         }
         if ($request->app_status == 'Committee') {
             $updateData['decision_3'] = 0;
@@ -2777,135 +2724,39 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         }
         if ($request->app_status == 'Rejected due to conditions') {
             $updateData['decision_2'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionreject1.pdf', 'decisionreject0a.pdf', 'decisionreject0c.pdf', 'decisionreject0d.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionreject1.pdf', 'decisionreject0a.pdf', 'decisionreject0c.pdf', 'decisionreject0d.pdf'])->delete();
         }
         if ($request->app_status == 'Accepted') {
             $updateData['decision_3'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf'])->delete();
         }
         if ($request->app_status == 'Accepted A') {
             $updateData['decision_3_a'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionapprove1.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionapprove1.pdf'])->delete();
         }
         if ($request->app_status == 'Accepted B') {
             $updateData['decision_3_b'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionapprove2.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionapprove2.pdf'])->delete();
         }
         if ($request->app_status == 'Rejected') {
             $updateData['decision_4'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionreject2.pdf', 'reject0a.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionreject2.pdf', 'reject0a.pdf'])->delete();
         }
         if ($request->app_status == 'Rejected0') {
             $updateData['decision_4'] = 0;
             $updateData['decision_2'] = 0;
             $updateData['rejected'] = 0;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionreject0.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionreject0.pdf'])->delete();
         }
         if ($request->app_status == 'FinalReject') {
             $updateData['decision_4'] = 0;
             $updateData['rejected_status'] = NULL;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionreject0_fr.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionreject0_fr.pdf'])->delete();
         }
         if ($request->app_status == 'FailedToJoinCommittee') {
             $updateData['decision_4'] = 0;
             $updateData['rejected_status'] = NULL;
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            $targetNames = ['decisionreject0_fd.pdf'];
-            $files = DB::table('apps_file')->where('app_id', $appId)->get();
-            $idsToDelete = [];
-            foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (in_array($decryptedName, $targetNames)) {
-                    $idsToDelete[] = $f->id;
-                }
-            }
-            if (!empty($idsToDelete)) {
-                DB::table('apps_file')->whereIn('id', $idsToDelete)->delete();
-            }
+            DB::table('apps_file')->where('app_id', $appId)->whereIn('file_name', ['decisionreject0_fd.pdf'])->delete();
         }
 
         DB::table('app_decisions')->where('id', $appId)->update($updateData);
@@ -2916,8 +2767,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
     public function stepBackSecond(Request $request)
     {
         $appId = $request->app_id;
-        // Find and delete any decision-related files by decrypting file_name and matching plaintext names
-        $encryptionService = app(\App\Services\EncryptionService::class);
+        // Find and delete any decision-related files (no encryption - plain text file names)
         $targetNames = [
             'decisionapprove1.pdf', 'decisionapprove2.pdf', 'decisionapprove3.pdf', 'decisionapprove4.pdf', 'decisionapprove5.pdf',
             'decisionreject1.pdf', 'decisionreject2.pdf', 'decisionreject0d.pdf', 'decisionreject0_fd.pdf', 'decisionreject0_fr.pdf', 'decisionreject0a.pdf'
@@ -2925,9 +2775,8 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         $files = DB::table('apps_file')->where('app_id', $appId)->get();
         $idsToDelete = [];
         foreach ($files as $f) {
-            $decryptedName = $encryptionService->decrypt($f->file_name);
-            // also handle wildcard decision*.pdf by checking prefix
-            if (in_array($decryptedName, $targetNames) || str_starts_with($decryptedName, 'decision')) {
+            // Handle both explicit names and wildcard decision*.pdf by checking prefix
+            if (in_array($f->file_name, $targetNames) || str_starts_with($f->file_name, 'decision')) {
                 $idsToDelete[] = $f->id;
             }
         }
@@ -3018,14 +2867,10 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
                 ->orderBy('id', 'ASC')  // Order by ID to maintain insertion order
                 ->get();
 
-            // Decrypt file_name and filter out 'form.pdf' and any decision*.pdf of type 'pdf'
-            $encryptionService = app(\App\Services\EncryptionService::class);
+            // Filter out 'form.pdf' and any decision*.pdf (no encryption - plain text)
             $filtered = [];
             foreach ($files as $f) {
-                $decryptedName = $encryptionService->decrypt($f->file_name);
-                if (!($decryptedName === 'form.pdf' && $f->type === 'pdf') && !str_starts_with($decryptedName, 'decision')) {
-                    // replace file_name with decrypted value for callers expecting plaintext
-                    $f->file_name = $decryptedName;
+                if (!($f->file_name === 'form.pdf' && $f->type === 'pdf') && !str_starts_with($f->file_name, 'decision')) {
                     $filtered[] = $f;
                 }
             }
@@ -3105,43 +2950,37 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
 
             Log::debug('Total files found: ' . count($files));
 
-            // Initialize encryption service for decrypting file URLs
-            $encryptionService = app(\App\Services\EncryptionService::class);
-
             $filespath = public_path('upload');
             $marge_file = Str::replace(' ', '_', $decs->applicant_name) . "@{$did}_all_files.pdf";
             $pdf = new PdfMerge();
             $filesAdded = 0;
 
             foreach ($files as $key => $file) {
-                // Decrypt the URL if encrypted
-                $decryptedUrl = $file->url;
-                if ($encryptionService->isEncrypted($file->url)) {
-                    $decryptedUrl = $encryptionService->decrypt($file->url);
-                }
+                // No encryption - use url directly
+                $fileUrl = $file->url;
 
                 // Skip non-PDF files (docx, doc, etc.)
-                if (strpos($decryptedUrl, 'docx') !== false || strpos($decryptedUrl, 'doc') !== false) {
-                    Log::debug('Skipping non-PDF file: ' . $decryptedUrl);
+                if (strpos($fileUrl, 'docx') !== false || strpos($fileUrl, 'doc') !== false) {
+                    Log::debug('Skipping non-PDF file: ' . $fileUrl);
                     continue;
                 }
 
                 // Try main upload folder
-                if (file_exists($filespath . '/' . $decryptedUrl)) {
-                    $pdf->add($filespath . '/' . $decryptedUrl);
+                if (file_exists($filespath . '/' . $fileUrl)) {
+                    $pdf->add($filespath . '/' . $fileUrl);
                     $filesAdded++;
-                    Log::debug('Added file from upload: ' . $decryptedUrl);
+                    Log::debug('Added file from upload: ' . $fileUrl);
                 }
                 // Try admin folder
-                elseif (file_exists($filespath . '/admin/' . $decryptedUrl)) {
-                    $pdf->add($filespath . '/admin/' . $decryptedUrl);
+                elseif (file_exists($filespath . '/admin/' . $fileUrl)) {
+                    $pdf->add($filespath . '/admin/' . $fileUrl);
                     $filesAdded++;
-                    Log::debug('Added file from admin: ' . $decryptedUrl);
+                    Log::debug('Added file from admin: ' . $fileUrl);
                 } else {
                     Log::warning('File not found in either location', [
-                        'url' => $decryptedUrl,
-                        'main_path' => $filespath . '/' . $decryptedUrl,
-                        'admin_path' => $filespath . '/admin/' . $decryptedUrl
+                        'url' => $fileUrl,
+                        'main_path' => $filespath . '/' . $fileUrl,
+                        'admin_path' => $filespath . '/admin/' . $fileUrl
                     ]);
                 }
             }
@@ -3214,11 +3053,10 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         if ($fileID == 'newfile') {
             $fileID = DB::table('apps_file')->insertGetId([
                 'app_id' => $appid,
-                'url' => $this->encryptionService->encrypt('empty.txt'),
+                'url' => 'empty.txt',
                 'type' => 'newfile',
-                'file_name' => $this->encryptionService->encrypt(' ^^מסמך אחר'),
-                'status' => 4,
-                'encryption_key_slot' => $this->encryptionService->getCurrentKeySlot()
+                'file_name' => ' ^^מסמך אחר',
+                'status' => 4
             ]);
         } else {
         }
@@ -3250,21 +3088,16 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
             $appid = $app_decision->id;
         }
 
-        // Decrypt the file name if it's encrypted
-        $decryptedFileName = $file->file_name;
-        if ($this->encryptionService->isEncrypted($file->file_name)) {
-            $decryptedFileName = $this->encryptionService->decrypt($file->file_name);
-        }
-
+        // No encryption - use file_name directly
         if ($file->type != 'pdf') {
-            $file_arr = explode('^^', $decryptedFileName);
+            $file_arr = explode('^^', $file->file_name);
             if (isset($file_arr[1])) {
                 $file_name = $file_arr[1];
             } else {
-                $file_name = $decryptedFileName;
+                $file_name = $file->file_name;
             }
         } else {
-            $file_name = $decryptedFileName;
+            $file_name = $file->file_name;
         }
         $formsTable = Forms::getFFF();
         $body = '<div style="color:#111;margin-bottom: 15px;">' . $msg;
@@ -3663,18 +3496,7 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         $appId = $request->input('app_id', 'unknown');
         $action = $request->input('action', 'view');
 
-        // Decrypt file name if it's encrypted
-        if ($fileName !== 'unknown') {
-            try {
-                $encryptionService = app(\App\Services\EncryptionService::class);
-                if ($encryptionService->isEncrypted($fileName)) {
-                    $fileName = $encryptionService->decrypt($fileName);
-                }
-            } catch (\Exception $e) {
-                // If decryption fails, log the original value
-                \Illuminate\Support\Facades\Log::warning("Failed to decrypt file name in logFileAccess: " . $e->getMessage());
-            }
-        }
+        // No encryption - file names are stored as plain text
 
         security_log('INFO', 'DOWNLOAD_FILE', [
             'user' => $authUser, // Pass user object for better logging (handles null automatically)
@@ -3722,23 +3544,13 @@ join tenders on ut.tenderId=tenders.id and tenders.generated_id='" . $decisions-
         $fileName = basename($fullPath);
         $authUser = auth()->user();
 
-        // Decrypt file name if it's encrypted for logging
-        $logFileName = $fileName;
-        try {
-            $encryptionService = app(\App\Services\EncryptionService::class);
-            if ($encryptionService->isEncrypted($fileName)) {
-                $logFileName = $encryptionService->decrypt($fileName);
-            }
-        } catch (\Exception $e) {
-            // If decryption fails, use original filename for logging
-            \Illuminate\Support\Facades\Log::warning("Failed to decrypt file name in secureFileDownload: " . $e->getMessage());
-        }
+        // No encryption - file names are stored as plain text
 
         // Security log for file download
         security_log('INFO', 'DOWNLOAD_FILE', [
             'user' => $authUser, // Pass user object for better logging (handles null automatically)
             'ip' => $request->ip(),
-            'file' => $logFileName,
+            'file' => $fileName,
             'path' => $filePath
         ]);
 
